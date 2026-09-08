@@ -4,14 +4,17 @@ Staged build plan, thinnest-possible-path first. See `DESIGN.md` for the
 full design rationale behind each decision referenced here. Each stage
 should be shippable/demoable before moving to the next.
 
-## Stage 1 — Scaffold & deploy pipeline
+## Stage 1 — Scaffold ✅
 
 - `ng new`, standalone components + signals (no NgModules).
 - Get it building locally.
-- Wire up Azure Static Web Apps deploy via GitHub Actions, unlisted URL,
-  no auth yet.
-- Goal: prove the deploy pipeline end-to-end before any real feature
-  exists, so every later stage ships incrementally.
+- Deployment (GitHub upstream, Azure Static Web Apps) deliberately not
+  part of this stage — moved to Stage 6, alongside real-device
+  shakedown. Trade-off: no live deploy to demo until late, in exchange
+  for not touching GitHub/Azure account setup until there's a real app
+  worth deploying.
+- Complete — `band-rehearsal-player` scaffolded (routing + SCSS), `ng
+  build`/`ng serve` verified locally.
 
 ## Stage 2 — Data model, no audio yet
 
@@ -53,8 +56,22 @@ should be shippable/demoable before moving to the next.
   visibility-change — test on an actual iOS device, since that's the
   flaky case.
 
-## Stage 6 — Real-device shakedown
+## Stage 6 — Deploy & real-device shakedown
 
+- Create a personal GitHub repo, push, `git remote add origin` /
+  `git push -u origin main`.
+- Create the Azure Static Web App resource (Portal or `az
+  staticwebapp create`), linked to that repo/branch, unlisted URL, no
+  auth yet:
+  - App location `/`, output location
+    `dist/band-rehearsal-player/browser` (must include the `/browser`
+    suffix — verify manually even if a preset autofills something
+    else).
+  - Api location blank (no Azure Functions API).
+  - Let the wizard auto-generate the GitHub Actions workflow and
+    deployment-token secret — don't hand-author one in advance.
+- Confirm the `*.azurestaticapps.net` URL loads the live app after the
+  workflow runs.
 - Test with actual Dropbox links on phones (iOS Safari + Android
   Chrome).
 - Verify range-request seeking/scrubbing.
