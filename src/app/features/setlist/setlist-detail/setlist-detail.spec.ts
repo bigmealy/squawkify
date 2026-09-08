@@ -1,0 +1,93 @@
+import { TestBed } from '@angular/core/testing';
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { provideRouter } from '@angular/router';
+import { SetlistDetail } from './setlist-detail';
+import { flushManifests } from '../../../testing/flush-manifests';
+import { Song } from '../../../models/song';
+import { Practice } from '../../../models/practice';
+import { Recording } from '../../../models/recording';
+
+describe('SetlistDetail', () => {
+  let httpMock: HttpTestingController;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [SetlistDetail],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
+    }).compileComponents();
+    httpMock = TestBed.inject(HttpTestingController);
+  });
+
+  afterEach(() => {
+    httpMock.verify();
+  });
+
+  it('shows recordings for the resolved song, most recent practice first', async () => {
+    // Arrange
+    const song: Song = { id: 's1', title: 'Song With Takes' };
+    const olderPractice: Practice = { id: 'p1', date: '2026-01-01', venue: 'Room 1' };
+    const newerPractice: Practice = { id: 'p2', date: '2026-02-01', venue: 'Room 2' };
+    const olderRecording: Recording = {
+      id: 'r1',
+      songId: song.id,
+      practiceId: olderPractice.id,
+      url: 'https://example.com/r1.mp3',
+      takeLabel: 'Take 1',
+    };
+    const newerRecording: Recording = {
+      id: 'r2',
+      songId: song.id,
+      practiceId: newerPractice.id,
+      url: 'https://example.com/r2.mp3',
+      takeLabel: 'Take 2',
+    };
+
+    // Act
+    const fixture = TestBed.createComponent(SetlistDetail);
+    fixture.componentRef.setInput('songId', song.id);
+    TestBed.tick();
+    flushManifests(httpMock, {
+      songs: [song],
+      practices: [olderPractice, newerPractice],
+      recordings: [olderRecording, newerRecording],
+    });
+    await fixture.whenStable();
+
+    // Assert
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    const take1Index = text.indexOf('Take 1');
+    const take2Index = text.indexOf('Take 2');
+    expect(take2Index).toBeGreaterThanOrEqual(0);
+    expect(take1Index).toBeGreaterThan(take2Index);
+  });
+
+  it('shows an explicit empty state for a song with no recordings', async () => {
+    // Arrange
+    const song: Song = { id: 's1', title: 'Song With No Recordings' };
+
+    // Act
+    const fixture = TestBed.createComponent(SetlistDetail);
+    fixture.componentRef.setInput('songId', song.id);
+    TestBed.tick();
+    flushManifests(httpMock, { songs: [song] });
+    await fixture.whenStable();
+
+    // Assert
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(text).toContain('No recordings yet');
+  });
+
+  it('shows a not-found state for an unknown songId', async () => {
+    // Act
+    const fixture = TestBed.createComponent(SetlistDetail);
+    fixture.componentRef.setInput('songId', 'missing-song');
+    TestBed.tick();
+    flushManifests(httpMock);
+    await fixture.whenStable();
+
+    // Assert
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(text).toContain('Song not found');
+  });
+});

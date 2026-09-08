@@ -66,6 +66,47 @@ describe('RehearsalData', () => {
     expect(service.error()).toBeUndefined();
   });
 
+  it('exposes songsWithRecordings and practicesWithRecordings joined, grouped, and ordered', async () => {
+    // Arrange — two songs (one with no recordings), two practices (most
+    // recent second in the manifest, to confirm it's reordered first), and
+    // recordings split across both practices to exercise the join.
+    const songWithTakes: Song = { id: 's1', title: 'Song With Takes' };
+    const songWithNone: Song = { id: 's2', title: 'Song With No Recordings' };
+    const olderPractice: Practice = { id: 'p1', date: '2026-01-01', venue: 'Room 1' };
+    const newerPractice: Practice = { id: 'p2', date: '2026-02-01', venue: 'Room 2' };
+    const olderRecording: Recording = {
+      id: 'r1',
+      songId: songWithTakes.id,
+      practiceId: olderPractice.id,
+      url: 'https://example.com/r1.mp3',
+    };
+    const newerRecording: Recording = {
+      id: 'r2',
+      songId: songWithTakes.id,
+      practiceId: newerPractice.id,
+      url: 'https://example.com/r2.mp3',
+    };
+    const service = TestBed.inject(RehearsalData);
+
+    // Act
+    TestBed.tick();
+    respondTo(httpMock, 'data/songs.json', [songWithTakes, songWithNone]);
+    respondTo(httpMock, 'data/practices.json', [olderPractice, newerPractice]);
+    respondTo(httpMock, 'data/recordings.json', [olderRecording, newerRecording]);
+    await TestBed.inject(ApplicationRef).whenStable();
+
+    // Assert
+    const songGroups = service.songsWithRecordings();
+    expect(songGroups.map((g) => g.song.id)).toEqual([songWithTakes.id, songWithNone.id]);
+    expect(songGroups[0].recordings.map((r) => r.recording.id)).toEqual(['r2', 'r1']);
+    expect(songGroups[1].recordings).toEqual([]);
+
+    const practiceGroups = service.practicesWithRecordings();
+    expect(practiceGroups.map((g) => g.practice.id)).toEqual([newerPractice.id, olderPractice.id]);
+    expect(practiceGroups[0].recordings.map((r) => r.recording.id)).toEqual(['r2']);
+    expect(practiceGroups[1].recordings.map((r) => r.recording.id)).toEqual(['r1']);
+  });
+
   it('reports isLoading as true while the manifest requests are outstanding', () => {
     // Arrange
     const service = TestBed.inject(RehearsalData);

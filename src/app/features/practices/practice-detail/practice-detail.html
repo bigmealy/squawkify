@@ -1,0 +1,24 @@
+<a routerLink="/practices">&larr; Back to practices</a>
+
+@if (group(); as g) {
+  <h1>{{ g.practice.date }} — {{ g.practice.venue }}</h1>
+  @if (g.practice.label) {
+    <p>{{ g.practice.label }}</p>
+  }
+  @if (g.recordings.length > 0) {
+    <ul>
+      @for (item of g.recordings; track item.recording.id) {
+        <li>
+          {{ item.song.title }}
+          @if (item.recording.takeLabel) {
+            ({{ item.recording.takeLabel }})
+          }
+        </li>
+      }
+    </ul>
+  } @else {
+    <p>No recordings yet for this practice.</p>
+  }
+} @else {
+  <p>Practice not found.</p>
+}

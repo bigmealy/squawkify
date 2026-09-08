@@ -1,0 +1,26 @@
+@if (data.isLoading()) {
+  <p>Loading…</p>
+} @else if (data.error()) {
+  <p>Failed to load practices.</p>
+} @else {
+  <h1>Practices</h1>
+  <ul>
+    @for (group of data.practicesWithRecordings(); track group.practice.id) {
+      <li>
+        <a [routerLink]="['/practices', group.practice.id]">
+          {{ group.practice.date }} — {{ group.practice.venue }}
+          @if (group.practice.label) {
+            ({{ group.practice.label }})
+          }
+        </a>
+        @if (group.recordings.length > 0) {
+          <span>
+            ({{ group.recordings.length }} recording{{ group.recordings.length === 1 ? '' : 's' }})
+          </span>
+        } @else {
+          <span>no recordings yet</span>
+        }
+      </li>
+    }
+  </ul>
+}

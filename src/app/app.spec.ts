@@ -1,47 +1,28 @@
 import { TestBed } from '@angular/core/testing';
-import { provideHttpClient } from '@angular/common/http';
-import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { provideRouter } from '@angular/router';
 import { App } from './app';
 
-// App injects RehearsalData (see rehearsal-data.spec.ts for its own tests),
-// which fires httpResource requests for the three manifests as soon as the
-// component is constructed — HttpClientTesting stands in for the real
-// backend so those requests don't hit the network during this test.
+// App is now just router chrome (nav + <router-outlet>) — it no longer
+// injects RehearsalData itself (that moved into the feature components
+// under features/), so these tests don't need HttpClientTesting.
 describe('App', () => {
-  let httpMock: HttpTestingController;
-
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [App],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideRouter([])],
     }).compileComponents();
-    httpMock = TestBed.inject(HttpTestingController);
   });
-
-  afterEach(() => {
-    httpMock.verify();
-  });
-
-  function flushManifests(): void {
-    httpMock.expectOne('data/songs.json').flush([]);
-    httpMock.expectOne('data/practices.json').flush([]);
-    httpMock.expectOne('data/recordings.json').flush([]);
-  }
 
   it('should create the app', () => {
     const fixture = TestBed.createComponent(App);
-    const app = fixture.componentInstance;
-    expect(app).toBeTruthy();
-    TestBed.tick();
-    flushManifests();
+    expect(fixture.componentInstance).toBeTruthy();
   });
 
-  it('should render title', async () => {
+  it('should render nav links to the Setlist and Practices views', () => {
     const fixture = TestBed.createComponent(App);
-    TestBed.tick();
-    flushManifests();
-    await fixture.whenStable();
+    fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('h1')?.textContent).toContain('Hello, band-rehearsal-player');
+    expect(compiled.querySelector('a[href="/setlist"]')).toBeTruthy();
+    expect(compiled.querySelector('a[href="/practices"]')).toBeTruthy();
   });
 });

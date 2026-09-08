@@ -1,0 +1,21 @@
+<a routerLink="/setlist">&larr; Back to setlist</a>
+
+@if (group(); as g) {
+  <h1>{{ g.song.title }}</h1>
+  @if (g.recordings.length > 0) {
+    <ul>
+      @for (item of g.recordings; track item.recording.id) {
+        <li>
+          {{ item.practice.date }} — {{ item.practice.venue }}
+          @if (item.recording.takeLabel) {
+            ({{ item.recording.takeLabel }})
+          }
+        </li>
+      }
+    </ul>
+  } @else {
+    <p>No recordings yet for this song.</p>
+  }
+} @else {
+  <p>Song not found.</p>
+}

@@ -3,6 +3,16 @@ import { httpResource } from '@angular/common/http';
 import { Song } from '../models/song';
 import { Practice } from '../models/practice';
 import { Recording } from '../models/recording';
+import {
+  groupByPractice,
+  groupBySong,
+  joinRecordings,
+  PracticeGroup,
+  SongGroup,
+  sortPracticesMostRecentFirst,
+  sortRecordingsBySetOrder,
+  sortTakesMostRecentFirst,
+} from './rehearsal-grouping';
 
 @Injectable({ providedIn: 'root' })
 export class RehearsalData {
@@ -32,5 +42,25 @@ export class RehearsalData {
       this.songsResource.error() ??
       this.practicesResource.error() ??
       this.recordingsResource.error(),
+  );
+
+  private readonly joinedRecordings = computed(() =>
+    joinRecordings(this.songs(), this.practices(), this.recordings()),
+  );
+
+  readonly songsWithRecordings = computed<SongGroup[]>(() =>
+    groupBySong(this.songs(), this.joinedRecordings()).map((group) => ({
+      ...group,
+      recordings: sortTakesMostRecentFirst(group.recordings),
+    })),
+  );
+
+  readonly practicesWithRecordings = computed<PracticeGroup[]>(() =>
+    groupByPractice(sortPracticesMostRecentFirst(this.practices()), this.joinedRecordings()).map(
+      (group) => ({
+        ...group,
+        recordings: sortRecordingsBySetOrder(group.recordings),
+      }),
+    ),
   );
 }
