@@ -16,7 +16,7 @@ should be shippable/demoable before moving to the next.
 - Complete — `band-rehearsal-player` scaffolded (routing + SCSS), `ng
   build`/`ng serve` verified locally.
 
-## Stage 2 — Data model, no audio yet
+## Stage 2 — Data model, no audio yet ✅
 
 - Hand-write the Songs / Practices / Recordings JSON manifests. ✅ —
   real setlist, practice dates, and 53 recordings (sourced from the
@@ -28,13 +28,23 @@ should be shippable/demoable before moving to the next.
 - Load manifests via `HttpClient`. ✅ — `RehearsalData` service
   (`src/app/data/`) uses `httpResource` to load all three into signals,
   with `isLoading`/`error` derived from them; covered by
-  `rehearsal-data.spec.ts`. Verified via a temporary `effect()` in
-  `App` (to be removed once the views below consume it directly).
+  `rehearsal-data.spec.ts`.
 - Build Setlist view (grouped by song) and Practices view (grouped by
   date) as plain list/detail navigation, correctly joined and ordered by
-  `setOrder`.
+  `setOrder`. ✅ — `SetlistList`/`SetlistDetail` and
+  `PracticesList`/`PracticeDetail` (`src/app/features/`), lazy-routed via
+  `app.routes.ts`. Joining/grouping/ordering logic lives in
+  `src/app/data/rehearsal-grouping.ts` (pure, unit-tested) and is exposed
+  from `RehearsalData` as `songsWithRecordings`/`practicesWithRecordings`
+  computed signals. Setlist ordered by manifest order, takes within a song
+  most-recent-practice-first, practices most-recent-first, recordings
+  within a practice by `setOrder` (falling back to manifest order when
+  absent). Root `App` cleaned up to a nav + `<router-outlet>` shell.
 - No playback yet — just confirm the data model and navigation are
   right.
+
+Stage 2 complete — data model, manifests, loading, and navigation are all
+in place with no audio playback yet.
 
 ## Stage 3 — Playback
 
