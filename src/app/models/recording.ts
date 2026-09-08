@@ -5,5 +5,5 @@ export interface Recording {
   url: string;
   takeLabel?: string;
   notes?: string;
-  setOrder: number;
+  setOrder?: number;
 }

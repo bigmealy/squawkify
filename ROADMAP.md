@@ -21,11 +21,14 @@ should be shippable/demoable before moving to the next.
 - Hand-write the Songs / Practices / Recordings JSON manifests. ✅ —
   real setlist, practice dates, and 53 recordings (sourced from the
   Dropbox mixes folder) are in `public/data/`.
-- Define TypeScript interfaces for all three.
+- Define TypeScript interfaces for all three. ✅ — `Song`, `Practice`,
+  `Recording` in `src/app/models/`; `recordings.json` keys renamed to
+  camelCase to match (`setOrder` is optional — only the 2026-04-01
+  practice has it populated so far).
 - Load manifests via `HttpClient`.
 - Build Setlist view (grouped by song) and Practices view (grouped by
   date) as plain list/detail navigation, correctly joined and ordered by
-  `set_order`.
+  `setOrder`.
 - No playback yet — just confirm the data model and navigation are
   right.
 
