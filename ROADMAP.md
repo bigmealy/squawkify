@@ -25,7 +25,11 @@ should be shippable/demoable before moving to the next.
   `Recording` in `src/app/models/`; `recordings.json` keys renamed to
   camelCase to match (`setOrder` is optional — only the 2026-04-01
   practice has it populated so far).
-- Load manifests via `HttpClient`.
+- Load manifests via `HttpClient`. ✅ — `RehearsalData` service
+  (`src/app/data/`) uses `httpResource` to load all three into signals,
+  with `isLoading`/`error` derived from them; covered by
+  `rehearsal-data.spec.ts`. Verified via a temporary `effect()` in
+  `App` (to be removed once the views below consume it directly).
 - Build Setlist view (grouped by song) and Practices view (grouped by
   date) as plain list/detail navigation, correctly joined and ordered by
   `setOrder`.
