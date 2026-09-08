@@ -1,0 +1,79 @@
+# Band Rehearsal Player — Roadmap
+
+Staged build plan, thinnest-possible-path first. See `DESIGN.md` for the
+full design rationale behind each decision referenced here. Each stage
+should be shippable/demoable before moving to the next.
+
+## Stage 1 — Scaffold & deploy pipeline
+
+- `ng new`, standalone components + signals (no NgModules).
+- Get it building locally.
+- Wire up Azure Static Web Apps deploy via GitHub Actions, unlisted URL,
+  no auth yet.
+- Goal: prove the deploy pipeline end-to-end before any real feature
+  exists, so every later stage ships incrementally.
+
+## Stage 2 — Data model, no audio yet
+
+- Hand-write the Songs / Practices / Recordings JSON manifests.
+- Define TypeScript interfaces for all three.
+- Load manifests via `HttpClient`.
+- Build Setlist view (grouped by song) and Practices view (grouped by
+  date) as plain list/detail navigation, correctly joined and ordered by
+  `set_order`.
+- No playback yet — just confirm the data model and navigation are
+  right.
+
+## Stage 3 — Playback
+
+- Persistent mini-player component (Spotify-style bar, not a full-screen
+  now-playing view).
+- `<audio>` element wired to Dropbox raw links (`raw=1` /
+  `dl.dropboxusercontent.com` style, not the Dropbox API).
+- Play/pause/scrub.
+- "Play all" queue logic for both song-versions and practice-sets.
+- Stop-at-end behavior (no auto-loop back to start).
+- This is the core value of the app — everything before it is
+  scaffolding.
+
+## Stage 4 — PWA install
+
+- `ng add @angular/pwa`.
+- Icons, web manifest.
+- Base service worker: app-shell/JSON caching only. Leave the `ngsw`
+  audio `dataGroup` (opportunistic caching) out for now — deferred item.
+- Confirm "add to home screen" works on a real phone.
+
+## Stage 5 — Lock-screen / background playback
+
+- Media Session API metadata + transport handlers.
+- Placeholder artwork generation (color block + initials) for lock-screen
+  display.
+- Verify background/backgrounded-tab playback doesn't pause on
+  visibility-change — test on an actual iOS device, since that's the
+  flaky case.
+
+## Stage 6 — Real-device shakedown
+
+- Test with actual Dropbox links on phones (iOS Safari + Android
+  Chrome).
+- Verify range-request seeking/scrubbing.
+- Verify background audio and install flow.
+- Fix whatever breaks here before telling the band it's ready.
+
+## Deferred (explicitly not in the critical path)
+
+- **SWA auth**: `staticwebapp.config.json` + role-gated routes for the 6
+  band-mates. Bolt on once the unlisted URL feels insufficient — low
+  cost, config-only addition.
+- **Opportunistic `ngsw` audio caching**: cache-first `dataGroup` for the
+  Dropbox domain, caching each recording on first play.
+- **Range-request-on-cached-audio verification**: needed only if the
+  above caching is added — confirm a cached recording still correctly
+  serves `Range` requests for scrubbing.
+- **Dropbox auto-discovery**: no fixed trigger; only revisit if manifest
+  upkeep starts to feel like a burden.
+- **PWA install flow/UX**: manual instructions vs. in-app install
+  prompt — not yet decided.
+- **Player UI details** beyond mini-player shape and queue behavior
+  (exact transport controls, layout specifics).
