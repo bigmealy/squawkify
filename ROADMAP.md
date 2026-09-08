@@ -18,7 +18,9 @@ should be shippable/demoable before moving to the next.
 
 ## Stage 2 — Data model, no audio yet
 
-- Hand-write the Songs / Practices / Recordings JSON manifests.
+- Hand-write the Songs / Practices / Recordings JSON manifests. ✅ —
+  real setlist, practice dates, and 53 recordings (sourced from the
+  Dropbox mixes folder) are in `public/data/`.
 - Define TypeScript interfaces for all three.
 - Load manifests via `HttpClient`.
 - Build Setlist view (grouped by song) and Practices view (grouped by
