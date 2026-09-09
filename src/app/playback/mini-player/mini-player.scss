@@ -10,4 +10,9 @@
   &--hidden {
     display: none;
   }
+
+  &__nav:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
 }

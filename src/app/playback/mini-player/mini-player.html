@@ -1,11 +1,23 @@
 <footer class="mini-player" [class.mini-player--hidden]="!player.current()">
   @if (player.current(); as current) {
+    <button
+      type="button"
+      class="mini-player__nav mini-player__nav--prev"
+      [disabled]="!player.hasPrevious()"
+      (click)="onPrevious()"
+    >Previous</button>
     <span class="mini-player__title">
       {{ current.song.title }}
       @if (current.recording.takeLabel) {
         <span class="mini-player__take">({{ current.recording.takeLabel }})</span>
       }
     </span>
+    <button
+      type="button"
+      class="mini-player__nav mini-player__nav--next"
+      [disabled]="!player.hasNext()"
+      (click)="onNext()"
+    >Next</button>
   }
   <audio
     #audioEl

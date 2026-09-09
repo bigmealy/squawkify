@@ -118,4 +118,66 @@ describe('PlayerState', () => {
 
     expect(player.current()).toBe(single);
   });
+
+  it('single-track playback (no queue) has neither previous nor next', () => {
+    const player = TestBed.inject(PlayerState);
+    player.play(makeItem('r1'));
+
+    expect(player.hasPrevious()).toBe(false);
+    expect(player.hasNext()).toBe(false);
+  });
+
+  it('playAll() at the first item has no previous but has a next', () => {
+    const player = TestBed.inject(PlayerState);
+    player.playAll([makeItem('r1'), makeItem('r2'), makeItem('r3')]);
+
+    expect(player.hasPrevious()).toBe(false);
+    expect(player.hasNext()).toBe(true);
+  });
+
+  it('hasPrevious()/hasNext() reflect position after advancing', () => {
+    const player = TestBed.inject(PlayerState);
+    player.playAll([makeItem('r1'), makeItem('r2'), makeItem('r3')]);
+
+    player.playNext(); // -> r2 (middle)
+    expect(player.hasPrevious()).toBe(true);
+    expect(player.hasNext()).toBe(true);
+
+    player.playNext(); // -> r3 (last)
+    expect(player.hasPrevious()).toBe(true);
+    expect(player.hasNext()).toBe(false);
+  });
+
+  it('playPrevious() moves back to the previous queued item', () => {
+    const player = TestBed.inject(PlayerState);
+    const items = [makeItem('r1'), makeItem('r2'), makeItem('r3')];
+    player.playAll(items);
+    player.playNext(); // -> r2
+
+    player.playPrevious();
+
+    expect(player.current()).toBe(items[0]);
+    expect(player.isPlaying()).toBe(true);
+  });
+
+  it('playPrevious() at the start of the queue is a no-op (no wrap to the end)', () => {
+    const player = TestBed.inject(PlayerState);
+    const items = [makeItem('r1'), makeItem('r2')];
+    player.playAll(items);
+
+    player.playPrevious();
+
+    expect(player.current()).toBe(items[0]);
+    expect(player.hasPrevious()).toBe(false);
+  });
+
+  it('playPrevious() with no active queue is a no-op', () => {
+    const player = TestBed.inject(PlayerState);
+    const item = makeItem('r1');
+    player.play(item);
+
+    player.playPrevious();
+
+    expect(player.current()).toBe(item);
+  });
 });

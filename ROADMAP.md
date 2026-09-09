@@ -74,12 +74,20 @@ in place with no audio playback yet.
   recording finishes; verified manually that a queue plays through in
   order and halts on the final track. A per-row "Play" click correctly
   interrupts an active queue.
+- Previous/Next track transport controls in the mini-player, so a
+  "Play all" queue can be navigated manually. ✅ — `PlayerState.hasPrevious`/
+  `hasNext` computed signals and a symmetric `playPrevious()` (mirrors
+  `playNext()`, no wrap at the start of the queue) back two always-visible
+  buttons in `MiniPlayer`, disabled via the `disabled` attribute (not
+  hidden) when there's no previous/next item — including single-track
+  playback with no active queue, where both are disabled. Covered by
+  `player-state.spec.ts` and `mini-player.spec.ts`.
 - This is the core value of the app — everything before it is
   scaffolding.
 
 Stage 3 complete — single-track playback, mini-player, `<audio>` wiring,
-play/pause/scrub, and "Play all" queueing with stop-at-end behavior are all
-in place.
+play/pause/scrub, "Play all" queueing with stop-at-end behavior, and
+Previous/Next transport controls are all in place.
 
 ## Stage 4 — PWA install
 
@@ -134,5 +142,5 @@ in place.
   upkeep starts to feel like a burden.
 - **PWA install flow/UX**: manual instructions vs. in-app install
   prompt — not yet decided.
-- **Player UI details** beyond mini-player shape and queue behavior
-  (exact transport controls, layout specifics).
+- **Player UI details** beyond mini-player shape, queue behavior, and
+  Previous/Next transport controls (visual styling/layout specifics).

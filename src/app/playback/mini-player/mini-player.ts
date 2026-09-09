@@ -40,4 +40,12 @@ export class MiniPlayer {
     this.player.setPlaying(false);
     this.player.playNext();
   }
+
+  protected onPrevious(): void {
+    this.player.playPrevious();
+  }
+
+  protected onNext(): void {
+    this.player.playNext();
+  }
 }
