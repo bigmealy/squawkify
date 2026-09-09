@@ -89,6 +89,15 @@
     }
   }
 
+  &__spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--color-bg);
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: mini-player-spin 0.8s linear infinite;
+  }
+
   &__scrub {
     display: flex;
     align-items: center;
@@ -111,5 +120,11 @@
   &__seek {
     flex: 1;
     accent-color: var(--color-accent-gold);
+  }
+}
+
+@keyframes mini-player-spin {
+  to {
+    transform: rotate(360deg);
   }
 }

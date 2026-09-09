@@ -54,15 +54,36 @@ no auto-discovery from Dropbox for now.
   band, but worth remembering if recordings become sensitive.
 - Not a concern currently: Dropbox usage/bandwidth limits, given only 6
   users.
-- **Opportunistic caching (tentative):** the Angular service worker
-  (`ngsw`) can be configured with a `dataGroup` matching the Dropbox
-  domain, using a `performance` (cache-first) strategy with a
-  `maxSize`/`maxAge` limit. This caches each recording the first time
-  it's actually played — no curated "download for offline" list needed,
-  just a side effect of normal listening. Config-only addition, no custom
-  service worker code required. Not yet decided whether to include at
-  launch or add later; low cost either way since it's additive to the
-  `ngsw-config.json` already needed for PWA installability.
+- **Opportunistic caching (implemented):** `ngsw-config.json` has a
+  `dataGroup` (`dropbox-recordings`) matching the shared folder's URL, using
+  a `performance` (cache-first) strategy. This turned out to need more than
+  config alone: Chrome's `<audio>` element always requests these URLs with a
+  `Range` header, and Dropbox answers with `206 Partial Content` — but the
+  Cache API spec forbids storing a `206` response (`cache.put()` throws),
+  and `ngsw`'s `DataGroup.cacheResponse()` has no special handling for that
+  case, so it silently fails to cache anything cached purely off the
+  `<audio>` element's own requests (playback still works, it just never
+  gets cached). `<audio>` also has no `crossorigin` attribute here, so its
+  requests are `no-cors` → opaque responses, which need
+  `cacheOpaqueResponses: true` to be cacheable at all — moot for the `206`
+  case, but relevant for the fix below.
+  Resolution: `src/app/playback/recording-cache.ts`'s `warmRecordingCache()`
+  fires a plain, headerless `fetch(url, { mode: 'no-cors' })` once a track's
+  live stream has already loaded its metadata (called from
+  `mini-player.ts`'s `onLoadedMetadata()`). A headerless request gets a full
+  `200` from Dropbox (confirmed via `curl`), which — combined with
+  `cacheOpaqueResponses: true` — *is* cacheable. `ngsw` matches cache
+  lookups by URL only (not by the incoming request's headers), so a later
+  Range-bearing request from `<audio>` for the same URL still hits this
+  cached full-body entry.
+  **Resolved verification concern:** does serving a full-body response to a
+  Range-bearing request break seeking? No — browsers already handle a
+  server that ignores `Range` and returns `200` by treating the whole
+  response as the resource (the same fallback that would kick in against
+  any plain HTTP server without range support at all); once the full body
+  is available, seeking/scrubbing is decode-buffer-local and unaffected by
+  how the bytes arrived. No byte-range slicing of the cached response is
+  needed.
 
 ## Site hosting — Azure Static Web Apps
 
@@ -99,10 +120,12 @@ Rationale:
 - Azure Static Web Apps has a built-in Angular build preset, so
   deployment is a known path.
 
-**Noted trade-off:** Angular's built-in service worker (`ngsw`) is tuned
-for app-shell/JSON caching, not streaming-media range requests — see the
-opportunistic-caching note and open verification item above under Audio
-hosting.
+**Noted trade-off (resolved):** Angular's built-in service worker (`ngsw`)
+is tuned for app-shell/JSON caching, not streaming-media range requests —
+see the opportunistic-caching note above under Audio hosting for how this
+was actually worked around (a headerless warm-up fetch, since `ngsw` can
+never cache the `<audio>` element's own Range-bearing/206 requests
+directly).
 
 **Not a factor in this choice:** the Media Session API (lock-screen
 artwork/controls) and background audio are plain browser APIs, called
@@ -141,13 +164,6 @@ framework decision.
 - PWA install flow/UX (how band-mates are prompted to add to home
   screen — manual instructions vs. in-app install prompt) not yet
   decided.
-- **Range-request behavior on cached audio:** if opportunistic caching
-  (above) is used, verify once built that a cached recording still
-  correctly serves `Range` requests (needed for scrubbing/seeking via
-  `<audio>`). Neither Angular's `ngsw` nor a from-scratch cache-first
-  handler guarantees this automatically — a cached whole-file response
-  has to be sliced to satisfy `bytes=...` requests, or seeking on a
-  cached track will misbehave or force a full re-fetch.
 - Player UI details beyond the persistent mini-player shape and queue
   behavior above (exact transport controls, layout specifics) not yet
   discussed.

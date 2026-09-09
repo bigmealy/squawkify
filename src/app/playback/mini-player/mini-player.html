@@ -22,9 +22,12 @@
         type="button"
         class="mini-player__play-pause"
         (click)="onTogglePlay()"
+        [attr.aria-busy]="isLoading()"
         [attr.aria-label]="player.isPlaying() ? 'Pause' : 'Play'"
       >
-        @if (player.isPlaying()) {
+        @if (isLoading()) {
+          <span class="mini-player__spinner" aria-hidden="true"></span>
+        } @else if (player.isPlaying()) {
           <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">
             <path d="M6 5h4v14H6zM14 5h4v14h-4z" />
           </svg>
@@ -68,5 +71,10 @@
     (ended)="onAudioEnded()"
     (timeupdate)="onTimeUpdate()"
     (loadedmetadata)="onLoadedMetadata()"
+    (loadstart)="onLoadStart()"
+    (waiting)="onWaiting()"
+    (canplay)="onPlayable()"
+    (playing)="onPlayable()"
+    (error)="onAudioError()"
   ></audio>
 </footer>

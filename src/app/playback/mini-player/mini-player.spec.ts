@@ -1,13 +1,25 @@
+import { vi } from 'vitest';
 import { TestBed } from '@angular/core/testing';
 import { MiniPlayer } from './mini-player';
 import { PlayerState } from '../player-state';
 import { JoinedRecording } from '../../data/rehearsal-grouping';
+
+// jsdom doesn't implement `navigator.serviceWorker` at all, so it has to be
+// defined (and torn down) per test rather than spied on.
+function setServiceWorker(value: unknown): void {
+  Object.defineProperty(navigator, 'serviceWorker', { value, configurable: true });
+}
 
 describe('MiniPlayer', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [MiniPlayer],
     }).compileComponents();
+  });
+
+  afterEach(() => {
+    Reflect.deleteProperty(navigator, 'serviceWorker');
+    vi.restoreAllMocks();
   });
 
   it('renders the <audio> element even before any recording is selected', () => {
@@ -57,6 +69,77 @@ describe('MiniPlayer', () => {
     fixture.detectChanges();
 
     expect(compiled.textContent).toContain('Song Two');
+  });
+
+  it('warms the recording cache once metadata has loaded', () => {
+    setServiceWorker({ controller: {} });
+    const fetchSpy = vi.spyOn(window, 'fetch').mockResolvedValue(new Response());
+
+    const fixture = TestBed.createComponent(MiniPlayer);
+    fixture.detectChanges();
+
+    const item: JoinedRecording = {
+      recording: { id: 'r1', songId: 's1', practiceId: 'p1', url: 'https://example.com/r1.mp3' },
+      song: { id: 's1', title: 'Song One' },
+      practice: { id: 'p1', date: '2026-01-01', venue: 'Room 1' },
+    };
+    TestBed.inject(PlayerState).play(item);
+    fixture.detectChanges();
+
+    const audio = fixture.nativeElement.querySelector('audio')!;
+    audio.dispatchEvent(new Event('loadedmetadata'));
+
+    expect(fetchSpy).toHaveBeenCalledExactlyOnceWith('https://example.com/r1.mp3', {
+      mode: 'no-cors',
+    });
+  });
+
+  it('shows a loading spinner while buffering and clears it once playable', () => {
+    const fixture = TestBed.createComponent(MiniPlayer);
+    fixture.detectChanges();
+
+    const item: JoinedRecording = {
+      recording: { id: 'r1', songId: 's1', practiceId: 'p1', url: 'https://example.com/r1.mp3' },
+      song: { id: 's1', title: 'Song One' },
+      practice: { id: 'p1', date: '2026-01-01', venue: 'Room 1' },
+    };
+    TestBed.inject(PlayerState).play(item);
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const audio = compiled.querySelector('audio')!;
+
+    audio.dispatchEvent(new Event('loadstart'));
+    fixture.detectChanges();
+    expect(compiled.querySelector('.mini-player__spinner')).toBeTruthy();
+
+    audio.dispatchEvent(new Event('canplay'));
+    fixture.detectChanges();
+    expect(compiled.querySelector('.mini-player__spinner')).toBeFalsy();
+  });
+
+  it('clears the loading spinner on a buffering stall and again on error', () => {
+    const fixture = TestBed.createComponent(MiniPlayer);
+    fixture.detectChanges();
+
+    const item: JoinedRecording = {
+      recording: { id: 'r1', songId: 's1', practiceId: 'p1', url: 'https://example.com/r1.mp3' },
+      song: { id: 's1', title: 'Song One' },
+      practice: { id: 'p1', date: '2026-01-01', venue: 'Room 1' },
+    };
+    TestBed.inject(PlayerState).play(item);
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const audio = compiled.querySelector('audio')!;
+
+    audio.dispatchEvent(new Event('waiting'));
+    fixture.detectChanges();
+    expect(compiled.querySelector('.mini-player__spinner')).toBeTruthy();
+
+    audio.dispatchEvent(new Event('error'));
+    fixture.detectChanges();
+    expect(compiled.querySelector('.mini-player__spinner')).toBeFalsy();
   });
 
   it('previous/next buttons are disabled for single-track playback', () => {

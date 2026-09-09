@@ -26,5 +26,17 @@
         "files": ["/**/*.(svg|cur|jpg|jpeg|png|apng|webp|avif|gif|otf|ttf|woff|woff2)"]
       }
     }
+  ],
+  "dataGroups": [
+    {
+      "name": "dropbox-recordings",
+      "urls": ["https://www.dropbox.com/scl/fo/dox9cb34zrcvx0acjyjno/**"],
+      "cacheConfig": {
+        "strategy": "performance",
+        "maxSize": 100,
+        "maxAge": "90d",
+        "cacheOpaqueResponses": true
+      }
+    }
   ]
 }

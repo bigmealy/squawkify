@@ -2,6 +2,7 @@ import { Component, computed, effect, ElementRef, inject, signal, viewChild } fr
 import { PlayerState } from '../player-state';
 import { buildMediaMetadata } from '../media-session';
 import { formatTime } from '../format-time';
+import { warmRecordingCache } from '../recording-cache';
 
 const hasMediaSession = () => 'mediaSession' in navigator;
 
@@ -16,6 +17,7 @@ export class MiniPlayer {
 
   protected readonly currentTime = signal(0);
   protected readonly duration = signal(0);
+  protected readonly isLoading = signal(false);
   protected readonly formattedCurrentTime = computed(() => formatTime(this.currentTime()));
   protected readonly formattedDuration = computed(() => formatTime(this.duration()));
 
@@ -83,7 +85,31 @@ export class MiniPlayer {
   }
 
   protected onLoadedMetadata(): void {
-    this.duration.set(this.audioRef().nativeElement.duration);
+    const audio = this.audioRef().nativeElement;
+    this.duration.set(audio.duration);
+    // `.src` rather than `.currentSrc`: we set `.src` directly to an
+    // absolute URL ourselves (see the effect above), and `.currentSrc` only
+    // reflects the browser's resource-selection algorithm, which jsdom
+    // doesn't simulate in tests.
+    warmRecordingCache(audio.src);
+  }
+
+  protected onLoadStart(): void {
+    this.isLoading.set(true);
+  }
+
+  protected onWaiting(): void {
+    this.isLoading.set(true);
+  }
+
+  // Bound to both 'canplay' and 'playing': either means the buffering
+  // indicator no longer needs to be shown.
+  protected onPlayable(): void {
+    this.isLoading.set(false);
+  }
+
+  protected onAudioError(): void {
+    this.isLoading.set(false);
   }
 
   protected onSeek(event: Event): void {

@@ -111,8 +111,9 @@ Previous/Next transport controls are all in place.
   to `ngsw-config.json`'s `"app"` asset group (prefetch, alongside the
   app shell), verified via a production build + local static serve that
   the service worker registers, activates, and caches all three JSON
-  files. The `ngsw` audio `dataGroup` (opportunistic caching) is
-  correctly left out — deferred item, unchanged.
+  files. The `ngsw` audio `dataGroup` (opportunistic caching) was left out
+  at the time — since implemented, see the "Deferred" section note below
+  on why it needed a warm-up fetch alongside the config, not config alone.
 - Confirm "add to home screen" works on a real phone. **Deferred to Stage
   7** — real installability needs HTTPS, which only exists once the app
   is actually deployed (Stage 7 already lists install-flow verification
@@ -259,17 +260,41 @@ Chrome, which hasn't been tested on real hardware yet — the band has a
 mix of iOS and Android phones, so this should be checked before calling
 Stage 7 fully done.
 
+## Stage 8 — Dropbox playback resilience ✅
+
+- Diagnosed a real-world report ("some recordings don't play") to
+  Dropbox's shared-link infrastructure intermittently returning `503`/`504`
+  for the `raw=1` URLs under repeated/rapid access — not app or file
+  corruption. Confirmed by downloading an affected file directly (valid,
+  complete `.m4a`) while the same URL failed via the deployed app's
+  `<audio>` element.
+- Implemented the previously-deferred opportunistic `ngsw` caching (see
+  DESIGN.md's "Audio hosting — Dropbox" section for the full mechanics):
+  a `dropbox-recordings` `dataGroup` in `ngsw-config.json`, plus
+  `src/app/playback/recording-cache.ts`'s `warmRecordingCache()` — a
+  headerless background fetch after a track's metadata loads, needed
+  because the `<audio>` element's own Range-bearing requests get `206`
+  responses that the Cache API can never store. Repeat plays of a
+  previously-warmed track are now served from cache, immune to Dropbox
+  being flaky.
+- Added a loading spinner (`mini-player.ts`'s `isLoading` signal, wired to
+  the `<audio>` element's `loadstart`/`waiting`/`canplay`/`playing`/`error`
+  events) so an uncached play gives visible feedback while waiting on
+  Dropbox instead of appearing to do nothing.
+- **Still deferred**: no visible error/retry UI if a load fails outright
+  (today it just silently resets to paused/0:00) — see below.
+
 ## Deferred (explicitly not in the critical path)
 
 - **SWA auth**: `staticwebapp.config.json` + role-gated routes for the 6
   band-mates. Bolt on once the unlisted URL feels insufficient — low
   cost, config-only addition.
-- **Opportunistic `ngsw` audio caching**: cache-first `dataGroup` for the
-  Dropbox domain, caching each recording on first play.
-- **Range-request-on-cached-audio verification**: needed only if the
-  above caching is added — confirm a cached recording still correctly
-  serves `Range` requests for scrubbing.
 - **Dropbox auto-discovery**: no fixed trigger; only revisit if manifest
   upkeep starts to feel like a burden.
 - **PWA install flow/UX**: manual instructions vs. in-app install
   prompt — not yet decided.
+- **Playback error/retry UX**: a failed `<audio>` load (e.g. Dropbox down
+  even after a cache miss) has no visible error state today — it just
+  silently resets to paused/0:00. The Stage 8 loading spinner clears on
+  `error` so it doesn't hang forever, but there's still no message or
+  retry affordance.
