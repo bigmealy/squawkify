@@ -208,7 +208,7 @@ list/detail views, and the custom mini-player transport UI are all in
 place (`src/app/shell/`, `src/styles/_tokens.scss`, restyled
 `mini-player`).
 
-## Stage 7 — Deploy & real-device shakedown (deploy done, device shakedown outstanding)
+## Stage 7 — Deploy & real-device shakedown (iOS verified, Android outstanding)
 
 - Create a personal GitHub repo, push, `git remote add origin` /
   `git push -u origin main`. ✅ — pushed to `bigmealy/squawkify` on
@@ -236,15 +236,28 @@ place (`src/app/shell/`, `src/styles/_tokens.scss`, restyled
   workflow runs. ✅ — resource created, secrets set, workflow green,
   live URL confirmed loading the app.
 - Test with actual Dropbox links on phones (iOS Safari + Android
-  Chrome). **Not done yet.**
-- Verify range-request seeking/scrubbing. **Not done yet.**
-- Verify background audio and install flow. **Not done yet.**
-- Fix whatever breaks here before telling the band it's ready.
+  Chrome). ✅ on iOS Safari (iPhone) — playback confirmed. **Android
+  Chrome not tested** — no Android device available; treat as
+  outstanding until someone with one can check.
+- Verify range-request seeking/scrubbing. ✅ on iOS Safari — scrubbing
+  works. Also spot-checked server-side independent of any device: the
+  Dropbox `raw=1` link redirects to `dl.dropboxusercontent.com`, which
+  responds to a `Range` request with `206 Partial Content` and
+  `accept-ranges: bytes`. Android still unverified.
+- Verify background audio and install flow. ✅ on iOS Safari — locking
+  the screen/switching apps keeps audio playing with working lock-screen
+  transport controls, and "Add to Home Screen" installs and launches
+  standalone with the correct icon/name. Android still unverified.
+- Fix whatever breaks here before telling the band it's ready. Nothing
+  broke on iOS.
 
 Deploy pipeline is live (`bigmealy/squawkify` → Azure Static Web Apps,
-encrypted manifests unlocked in CI); the real-device shakedown — phones,
-range-request scrubbing, background audio, install flow — is the one
-remaining item before this is ready to hand to the band.
+encrypted manifests unlocked in CI) and the full device shakedown has
+passed on iOS Safari (play/scrub, background audio, lock-screen
+controls, home-screen install). The only remaining gap is Android
+Chrome, which hasn't been tested on real hardware yet — the band has a
+mix of iOS and Android phones, so this should be checked before calling
+Stage 7 fully done.
 
 ## Deferred (explicitly not in the critical path)
 
