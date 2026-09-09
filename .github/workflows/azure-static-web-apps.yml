@@ -42,6 +42,6 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: upload
           skip_app_build: true
-          app_location: "/"
-          output_location: "dist/band-rehearsal-player/browser"
+          app_location: "dist/band-rehearsal-player/browser"
+          output_location: ""
           api_location: ""
