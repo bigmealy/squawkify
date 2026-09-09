@@ -9,7 +9,7 @@ should be shippable/demoable before moving to the next.
 - `ng new`, standalone components + signals (no NgModules).
 - Get it building locally.
 - Deployment (GitHub upstream, Azure Static Web Apps) deliberately not
-  part of this stage — moved to Stage 6, alongside real-device
+  part of this stage — moved to Stage 7, alongside real-device
   shakedown. Trade-off: no live deploy to demo until late, in exchange
   for not touching GitHub/Azure account setup until there's a real app
   worth deploying.
@@ -114,8 +114,8 @@ Previous/Next transport controls are all in place.
   files. The `ngsw` audio `dataGroup` (opportunistic caching) is
   correctly left out — deferred item, unchanged.
 - Confirm "add to home screen" works on a real phone. **Deferred to Stage
-  6** — real installability needs HTTPS, which only exists once the app
-  is actually deployed (Stage 6 already lists install-flow verification
+  7** — real installability needs HTTPS, which only exists once the app
+  is actually deployed (Stage 7 already lists install-flow verification
   as a to-do there). Local verification instead: production build served
   statically, confirmed in Chrome DevTools that the manifest parses
   correctly with all icons loading, and the service worker
@@ -124,7 +124,7 @@ Previous/Next transport controls are all in place.
 
 Stage 4 complete — PWA manifest, real branding/icons, and a base
 app-shell/JSON service worker are in place; only real-phone install
-confirmation carries over to Stage 6's device shakedown.
+confirmation carries over to Stage 7's device shakedown.
 
 ## Stage 5 — Lock-screen / background playback (mostly complete)
 
@@ -161,7 +161,7 @@ confirmation carries over to Stage 6's device shakedown.
   including metadata/enabled-state updates as the queue advances.
 - Verify background/backgrounded-tab playback doesn't pause on
   visibility-change — test on an actual iOS device, since that's the
-  flaky case. **Deferred to Stage 6** (real-device shakedown) — no code
+  flaky case. **Deferred to Stage 7** (real-device shakedown) — no code
   anywhere currently listens for `visibilitychange`, so this is a
   verification-only item, not a code change, unless real-device testing
   turns up a problem.
@@ -169,10 +169,18 @@ confirmation carries over to Stage 6's device shakedown.
 Stage 5 complete except real-device verification — Media Session
 metadata, generated placeholder artwork, and play/pause/previous/next
 lock-screen transport controls are all in place and verified in-browser;
-only the actual-iOS-device confirmation carries over to Stage 6's device
+only the actual-iOS-device confirmation carries over to Stage 7's device
 shakedown.
 
-## Stage 6 — Deploy & real-device shakedown
+## Stage 6 — UI/UX design pass
+
+- Visual styling/layout pass over the mini-player, queue behavior, and
+  Previous/Next transport controls — shape and behavior are already in
+  place from Stage 3/5; this stage is look-and-feel only.
+- Covers the "Player UI details" item currently listed under Deferred
+  below.
+
+## Stage 7 — Deploy & real-device shakedown
 
 - Create a personal GitHub repo, push, `git remote add origin` /
   `git push -u origin main`.
@@ -208,5 +216,3 @@ shakedown.
   upkeep starts to feel like a burden.
 - **PWA install flow/UX**: manual instructions vs. in-app install
   prompt — not yet decided.
-- **Player UI details** beyond mini-player shape, queue behavior, and
-  Previous/Next transport controls (visual styling/layout specifics).
