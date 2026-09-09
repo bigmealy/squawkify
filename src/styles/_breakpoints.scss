@@ -1,0 +1,9 @@
+// Single breakpoint: burger/drawer nav below this width, horizontal tabs and
+// a centered content column at or above it.
+$breakpoint-tablet: 768px;
+
+@mixin tablet-up {
+  @media (min-width: $breakpoint-tablet) {
+    @content;
+  }
+}

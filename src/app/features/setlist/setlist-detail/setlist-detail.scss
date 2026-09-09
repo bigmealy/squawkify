@@ -1,0 +1,38 @@
+@use '../../../../styles/mixins' as mix;
+
+.recording-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+
+  &__item {
+    @include mix.list-card;
+
+    &--active {
+      @include mix.list-card-active;
+    }
+  }
+
+  &__meta {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    min-width: 0;
+  }
+
+  &__practice {
+    font-weight: 600;
+  }
+
+  &__take {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-muted);
+  }
+
+  &__play {
+    @include mix.play-button;
+  }
+}

@@ -1,30 +1,72 @@
 <footer class="mini-player" [class.mini-player--hidden]="!player.current()">
   @if (player.current(); as current) {
-    <button
-      type="button"
-      class="mini-player__nav mini-player__nav--prev"
-      [disabled]="!player.hasPrevious()"
-      (click)="onPrevious()"
-    >Previous</button>
-    <span class="mini-player__title">
-      {{ current.song.title }}
+    <div class="mini-player__meta">
+      <span class="mini-player__title">{{ current.song.title }}</span>
       @if (current.recording.takeLabel) {
         <span class="mini-player__take">({{ current.recording.takeLabel }})</span>
       }
-    </span>
-    <button
-      type="button"
-      class="mini-player__nav mini-player__nav--next"
-      [disabled]="!player.hasNext()"
-      (click)="onNext()"
-    >Next</button>
+    </div>
+    <div class="mini-player__transport">
+      <button
+        type="button"
+        class="mini-player__nav mini-player__nav--prev"
+        [disabled]="!player.hasPrevious()"
+        (click)="onPrevious()"
+        aria-label="Previous track"
+      >
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
+          <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        class="mini-player__play-pause"
+        (click)="onTogglePlay()"
+        [attr.aria-label]="player.isPlaying() ? 'Pause' : 'Play'"
+      >
+        @if (player.isPlaying()) {
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">
+            <path d="M6 5h4v14H6zM14 5h4v14h-4z" />
+          </svg>
+        } @else {
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">
+            <path d="M8 5v14l11-7z" />
+          </svg>
+        }
+      </button>
+      <button
+        type="button"
+        class="mini-player__nav mini-player__nav--next"
+        [disabled]="!player.hasNext()"
+        (click)="onNext()"
+        aria-label="Next track"
+      >
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
+          <path d="M16 6h2v12h-2zM4.5 18l8.5-6-8.5-6z" />
+        </svg>
+      </button>
+    </div>
+    <div class="mini-player__scrub">
+      <span class="mini-player__time">{{ formattedCurrentTime() }}</span>
+      <input
+        type="range"
+        class="mini-player__seek"
+        min="0"
+        [max]="duration()"
+        [value]="currentTime()"
+        (input)="onSeek($event)"
+        aria-label="Seek"
+      />
+      <span class="mini-player__time">{{ formattedDuration() }}</span>
+    </div>
   }
   <audio
     #audioEl
-    controls
-    [hidden]="!player.current()"
+    [hidden]="true"
     (play)="onAudioPlay()"
     (pause)="onAudioPause()"
     (ended)="onAudioEnded()"
+    (timeupdate)="onTimeUpdate()"
+    (loadedmetadata)="onLoadedMetadata()"
   ></audio>
 </footer>

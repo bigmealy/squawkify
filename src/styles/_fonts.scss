@@ -1,0 +1,10 @@
+// Self-hosted rather than a Google Fonts CDN link: this is an installable
+// PWA, and a CDN font risks a flash of unstyled text or an outright failure
+// on a cold, offline home-screen launch.
+@font-face {
+  font-family: 'Playfair Display';
+  src: url('/fonts/playfair-display-variable.woff2') format('woff2-variations');
+  font-weight: 400 900;
+  font-style: normal;
+  font-display: swap;
+}

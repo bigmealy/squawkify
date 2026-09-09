@@ -1,6 +1,7 @@
-import { Component, effect, ElementRef, inject, viewChild } from '@angular/core';
+import { Component, computed, effect, ElementRef, inject, signal, viewChild } from '@angular/core';
 import { PlayerState } from '../player-state';
 import { buildMediaMetadata } from '../media-session';
+import { formatTime } from '../format-time';
 
 const hasMediaSession = () => 'mediaSession' in navigator;
 
@@ -13,6 +14,11 @@ export class MiniPlayer {
   protected readonly player = inject(PlayerState);
   private readonly audioRef = viewChild.required<ElementRef<HTMLAudioElement>>('audioEl');
 
+  protected readonly currentTime = signal(0);
+  protected readonly duration = signal(0);
+  protected readonly formattedCurrentTime = computed(() => formatTime(this.currentTime()));
+  protected readonly formattedDuration = computed(() => formatTime(this.duration()));
+
   constructor() {
     effect(() => {
       const current = this.player.current();
@@ -23,6 +29,8 @@ export class MiniPlayer {
       // with NotSupportedError on the very first click.
       const audio = this.audioRef().nativeElement;
       audio.src = current.recording.url;
+      this.currentTime.set(0);
+      this.duration.set(0);
       // Optional chaining: in tests, HTMLMediaElement.play() may not return a Promise.
       audio.play()?.catch(() => this.player.setPlaying(false));
 
@@ -68,6 +76,29 @@ export class MiniPlayer {
     // stomp that back to false.
     this.player.setPlaying(false);
     this.player.playNext();
+  }
+
+  protected onTimeUpdate(): void {
+    this.currentTime.set(this.audioRef().nativeElement.currentTime);
+  }
+
+  protected onLoadedMetadata(): void {
+    this.duration.set(this.audioRef().nativeElement.duration);
+  }
+
+  protected onSeek(event: Event): void {
+    const value = Number((event.target as HTMLInputElement).value);
+    this.audioRef().nativeElement.currentTime = value;
+    this.currentTime.set(value);
+  }
+
+  protected onTogglePlay(): void {
+    const audio = this.audioRef().nativeElement;
+    if (this.player.isPlaying()) {
+      audio.pause();
+    } else {
+      audio.play()?.catch(() => this.player.setPlaying(false));
+    }
   }
 
   protected onPrevious(): void {

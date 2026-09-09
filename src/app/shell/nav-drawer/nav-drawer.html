@@ -1,0 +1,33 @@
+<dialog
+  #drawerEl
+  class="nav-drawer"
+  aria-label="Navigation menu"
+  (cancel)="shellState.closeDrawer()"
+  (close)="shellState.closeDrawer()"
+  (click)="onBackdropClick($event)"
+>
+  <button
+    type="button"
+    class="nav-drawer__close"
+    (click)="shellState.closeDrawer()"
+    aria-label="Close menu"
+  >
+    <svg
+      viewBox="0 0 24 24"
+      width="20"
+      height="20"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      aria-hidden="true"
+    >
+      <path d="M6 6l12 12M18 6L6 18" />
+    </svg>
+  </button>
+  <span class="nav-drawer__brand">Squawkify</span>
+  <nav class="nav-drawer__nav">
+    <a routerLink="/setlist" routerLinkActive="nav-drawer__link--active">Setlist</a>
+    <a routerLink="/practices" routerLinkActive="nav-drawer__link--active">Practices</a>
+  </nav>
+</dialog>

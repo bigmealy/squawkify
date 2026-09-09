@@ -13,7 +13,8 @@
           "/manifest.webmanifest",
           "/*.css",
           "/*.js",
-          "/data/*.json"
+          "/data/*.json",
+          "/fonts/playfair-display-variable.woff2"
         ]
       }
     },

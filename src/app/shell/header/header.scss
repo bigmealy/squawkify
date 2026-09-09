@@ -1,0 +1,77 @@
+@use '../../../styles/breakpoints' as bp;
+@use '../../../styles/mixins' as mix;
+
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-bg);
+  border-bottom: 1px solid var(--color-border);
+
+  &__burger,
+  &__back {
+    @include mix.touch-target;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    color: var(--color-text);
+    padding: 0;
+    margin-left: calc(var(--space-2) * -1);
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+
+    &:hover {
+      color: var(--color-accent-gold);
+    }
+  }
+
+  &__burger {
+    @include bp.tablet-up {
+      display: none;
+    }
+  }
+
+  &__brand {
+    font-family: var(--font-family-display);
+    font-size: var(--font-size-lg);
+    font-weight: 700;
+    flex: 1;
+  }
+
+  &__title {
+    font-size: var(--font-size-lg);
+    margin: 0;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__tabs {
+    display: none;
+    gap: var(--space-5);
+
+    @include bp.tablet-up {
+      display: flex;
+    }
+
+    a {
+      text-decoration: none;
+      color: var(--color-text-muted);
+      font-weight: 600;
+      padding: var(--space-2) 0;
+      border-bottom: 2px solid transparent;
+
+      &.app-header__tab--active {
+        color: var(--color-accent-gold);
+        border-bottom-color: var(--color-accent-gold);
+      }
+    }
+  }
+}

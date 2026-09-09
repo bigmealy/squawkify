@@ -4,17 +4,30 @@
   <p>Failed to load the setlist.</p>
 } @else {
   <h1>Setlist</h1>
-  <ul>
+  <ul class="song-list">
     @for (group of data.songsWithRecordings(); track group.song.id) {
       <li>
-        <a [routerLink]="['/setlist', group.song.id]">{{ group.song.title }}</a>
-        @if (group.recordings.length > 0) {
-          <span>
-            ({{ group.recordings.length }} recording{{ group.recordings.length === 1 ? '' : 's' }})
+        <a
+          class="song-list__item"
+          [class.song-list__item--active]="isActiveSong(group.song.id)"
+          [routerLink]="['/setlist', group.song.id]"
+        >
+          <span
+            class="song-list__swatch"
+            [style.background]="swatchColor(group.song.id)"
+            aria-hidden="true"
+          ></span>
+          <span class="song-list__meta">
+            <span class="song-list__title">{{ group.song.title }}</span>
+            @if (group.recordings.length > 0) {
+              <span class="song-list__count">
+                {{ group.recordings.length }} recording{{ group.recordings.length === 1 ? '' : 's' }}
+              </span>
+            } @else {
+              <span class="song-list__count">no recordings yet</span>
+            }
           </span>
-        } @else {
-          <span>no recordings yet</span>
-        }
+        </a>
       </li>
     }
   </ul>

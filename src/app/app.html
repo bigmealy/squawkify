@@ -1,9 +1,8 @@
-<nav>
-  <a routerLink="/setlist" routerLinkActive="active">Setlist</a>
-  <a routerLink="/practices" routerLinkActive="active">Practices</a>
-</nav>
+<app-header />
+<app-nav-drawer />
 
-<router-outlet />
+<main class="app-shell__content">
+  <router-outlet />
+</main>
 
 <app-mini-player />
-

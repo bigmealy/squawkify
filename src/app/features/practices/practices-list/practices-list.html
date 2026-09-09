@@ -4,22 +4,30 @@
   <p>Failed to load practices.</p>
 } @else {
   <h1>Practices</h1>
-  <ul>
+  <ul class="practice-list">
     @for (group of data.practicesWithRecordings(); track group.practice.id) {
       <li>
-        <a [routerLink]="['/practices', group.practice.id]">
-          {{ group.practice.date }} — {{ group.practice.venue }}
-          @if (group.practice.label) {
-            ({{ group.practice.label }})
-          }
-        </a>
-        @if (group.recordings.length > 0) {
-          <span>
-            ({{ group.recordings.length }} recording{{ group.recordings.length === 1 ? '' : 's' }})
+        <a
+          class="practice-list__item"
+          [class.practice-list__item--active]="isActivePractice(group.practice.id)"
+          [routerLink]="['/practices', group.practice.id]"
+        >
+          <span class="practice-list__meta">
+            <span class="practice-list__title">
+              {{ group.practice.date }} — {{ group.practice.venue }}
+              @if (group.practice.label) {
+                <span class="practice-list__label">({{ group.practice.label }})</span>
+              }
+            </span>
+            @if (group.recordings.length > 0) {
+              <span class="practice-list__count">
+                {{ group.recordings.length }} recording{{ group.recordings.length === 1 ? '' : 's' }}
+              </span>
+            } @else {
+              <span class="practice-list__count">no recordings yet</span>
+            }
           </span>
-        } @else {
-          <span>no recordings yet</span>
-        }
+        </a>
       </li>
     }
   </ul>

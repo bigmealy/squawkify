@@ -1,5 +1,3 @@
-<a routerLink="/setlist">&larr; Back to setlist</a>
-
 @if (data.isLoading()) {
   <p>Loading…</p>
 } @else if (data.error()) {
@@ -7,14 +5,30 @@
 } @else if (group(); as g) {
   <h1>{{ g.song.title }}</h1>
   @if (g.recordings.length > 0) {
-    <ul>
+    <ul class="recording-list">
       @for (item of g.recordings; track item.recording.id) {
-        <li>
-          {{ item.practice.date }} — {{ item.practice.venue }}
-          @if (item.recording.takeLabel) {
-            ({{ item.recording.takeLabel }})
-          }
-          <button type="button" (click)="onPlay(item)">Play</button>
+        <li
+          class="recording-list__item"
+          [class.recording-list__item--active]="isActive(item)"
+        >
+          <div class="recording-list__meta">
+            <span class="recording-list__practice">
+              {{ item.practice.date }} — {{ item.practice.venue }}
+            </span>
+            @if (item.recording.takeLabel) {
+              <span class="recording-list__take">{{ item.recording.takeLabel }}</span>
+            }
+          </div>
+          <button
+            type="button"
+            class="recording-list__play"
+            (click)="onPlay(item)"
+            aria-label="Play"
+          >
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+          </button>
         </li>
       }
     </ul>

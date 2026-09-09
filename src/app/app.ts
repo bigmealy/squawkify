@@ -1,9 +1,11 @@
 import { Component } from '@angular/core';
-import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { RouterOutlet } from '@angular/router';
 import { MiniPlayer } from './playback/mini-player/mini-player';
+import { Header } from './shell/header/header';
+import { NavDrawer } from './shell/nav-drawer/nav-drawer';
 
 @Component({
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, MiniPlayer],
+  imports: [RouterOutlet, MiniPlayer, Header, NavDrawer],
   selector: 'app-root',
   styleUrl: './app.scss',
   templateUrl: './app.html',

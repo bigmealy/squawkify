@@ -1,0 +1,46 @@
+<header class="app-header">
+  @if (shellState.headerMode() === 'detail') {
+    <button type="button" class="app-header__back" (click)="shellState.goBack()" aria-label="Back">
+      <svg
+        viewBox="0 0 24 24"
+        width="24"
+        height="24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M15 18l-6-6 6-6" />
+      </svg>
+    </button>
+    <h1 class="app-header__title">{{ shellState.headerTitle() }}</h1>
+  } @else {
+    <button
+      type="button"
+      class="app-header__burger"
+      (click)="shellState.toggleDrawer()"
+      aria-label="Open navigation menu"
+      aria-haspopup="dialog"
+    >
+      <svg
+        viewBox="0 0 24 24"
+        width="24"
+        height="24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        aria-hidden="true"
+      >
+        <path d="M3 6h18M3 12h18M3 18h18" />
+      </svg>
+    </button>
+    <span class="app-header__brand">Squawkify</span>
+    <nav class="app-header__tabs">
+      <a routerLink="/setlist" routerLinkActive="app-header__tab--active">Setlist</a>
+      <a routerLink="/practices" routerLinkActive="app-header__tab--active">Practices</a>
+    </nav>
+  }
+</header>

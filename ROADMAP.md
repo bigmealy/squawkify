@@ -174,9 +174,32 @@ shakedown.
 
 ## Stage 6 — UI/UX design pass
 
+- Mobile-first responsive redesign across the whole app, not just the
+  mini-player: a dark, navy-forward theme (`#092439` base, cream text,
+  gold/amber accents) extending the existing app icon's own badge
+  palette, driven by a small design-token file
+  (`src/styles/_tokens.scss`) rather than one-off hardcoded colors.
+- A single morphing shared header (`src/app/shell/header/`) replacing
+  the previous plain `<nav>` in `app.html`: burger + app title on list
+  views below ~768px, horizontal Setlist/Practices tabs above ~768px
+  (no burger needed at tablet/desktop widths), and an iOS-style back
+  chevron + page title on detail views. Back navigation uses real
+  browser history (`Location.back()`), falling back to the parent list
+  route on a deep link with no history.
+- A simple nav drawer (`src/app/shell/nav-drawer/`, native `<dialog>`
+  for free focus-trapping/Escape-to-close) for the burger menu — just
+  the two existing Setlist/Practices links.
+- List/detail view restyle (`setlist-list`, `setlist-detail`,
+  `practices-list`, `practice-detail`): card-style rows, proper
+  touch-target sizing, and a currently-playing highlight driven by the
+  existing `PlayerState.current()` signal (no new playback logic).
 - Visual styling/layout pass over the mini-player, queue behavior, and
   Previous/Next transport controls — shape and behavior are already in
-  place from Stage 3/5; this stage is look-and-feel only.
+  place from Stage 3/5. Native `<audio controls>` is replaced with a
+  custom Prev/Play-Pause/Next + scrub-bar transport UI for visual
+  consistency with the rest of the redesign, still backed by the same
+  `<audio>` element and `PlayerState`/Media Session wiring. Includes
+  `env(safe-area-inset-bottom)` handling for the iOS home indicator.
 - Covers the "Player UI details" item currently listed under Deferred
   below.
 

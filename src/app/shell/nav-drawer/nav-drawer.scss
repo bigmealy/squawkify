@@ -1,0 +1,72 @@
+@use '../../../styles/mixins' as mix;
+
+.nav-drawer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  margin: 0;
+  width: min(80vw, 320px);
+  height: 100dvh;
+  max-height: 100dvh;
+  padding: var(--space-5) var(--space-4);
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: none;
+  box-shadow: var(--shadow-drawer);
+  flex-direction: column;
+  gap: var(--space-5);
+
+  // The UA stylesheet hides a <dialog> without the [open] attribute via
+  // `display: none`; scoping `display: flex` to [open] preserves that
+  // default instead of forcing the drawer to render inline at all times.
+  &[open] {
+    display: flex;
+  }
+
+  &::backdrop {
+    background: rgba(0, 0, 0, 0.5);
+  }
+
+  &__close {
+    @include mix.touch-target;
+    align-self: flex-end;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    color: var(--color-text);
+    cursor: pointer;
+    margin-right: calc(var(--space-2) * -1);
+  }
+
+  &__brand {
+    font-family: var(--font-family-display);
+    font-size: var(--font-size-lg);
+    font-weight: 700;
+  }
+
+  &__nav {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+
+    a {
+      @include mix.touch-target;
+      display: flex;
+      align-items: center;
+      padding: 0 var(--space-3);
+      border-radius: var(--radius-md);
+      text-decoration: none;
+      color: var(--color-text);
+      font-weight: 600;
+      border-left: 3px solid transparent;
+
+      &.nav-drawer__link--active {
+        color: var(--color-accent-gold);
+        border-left-color: var(--color-accent-gold);
+        background: var(--color-surface-raised);
+      }
+    }
+  }
+}
