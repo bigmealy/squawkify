@@ -1,0 +1,18 @@
+<footer class="mini-player" [class.mini-player--hidden]="!player.current()">
+  @if (player.current(); as current) {
+    <span class="mini-player__title">
+      {{ current.song.title }}
+      @if (current.recording.takeLabel) {
+        <span class="mini-player__take">({{ current.recording.takeLabel }})</span>
+      }
+    </span>
+  }
+  <audio
+    #audioEl
+    controls
+    [hidden]="!player.current()"
+    (play)="onAudioPlay()"
+    (pause)="onAudioPause()"
+    (ended)="onAudioEnded()"
+  ></audio>
+</footer>

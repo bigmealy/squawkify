@@ -17,6 +17,7 @@
           @if (item.recording.takeLabel) {
             ({{ item.recording.takeLabel }})
           }
+          <button type="button" (click)="onPlay(item)">Play</button>
         </li>
       }
     </ul>

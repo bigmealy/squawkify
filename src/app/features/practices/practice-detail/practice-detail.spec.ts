@@ -4,6 +4,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { provideRouter } from '@angular/router';
 import { PracticeDetail } from './practice-detail';
 import { flushManifests } from '../../../testing/flush-manifests';
+import { PlayerState } from '../../../playback/player-state';
 import { Practice } from '../../../models/practice';
 import { Song } from '../../../models/song';
 import { Recording } from '../../../models/recording';
@@ -98,6 +99,32 @@ describe('PracticeDetail', () => {
     const secondIndex = text.indexOf('Song Second');
     expect(firstIndex).toBeGreaterThanOrEqual(0);
     expect(secondIndex).toBeGreaterThan(firstIndex);
+  });
+
+  it('starts playback of the clicked recording', async () => {
+    // Arrange
+    const practice: Practice = { id: 'p1', date: '2026-01-01', venue: 'Room 1' };
+    const song: Song = { id: 's1', title: 'Song First' };
+    const recording: Recording = {
+      id: 'r1',
+      songId: song.id,
+      practiceId: practice.id,
+      url: 'https://example.com/r1.mp3',
+    };
+
+    // Act
+    const fixture = TestBed.createComponent(PracticeDetail);
+    fixture.componentRef.setInput('practiceId', practice.id);
+    TestBed.tick();
+    flushManifests(httpMock, { songs: [song], practices: [practice], recordings: [recording] });
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const button = (fixture.nativeElement as HTMLElement).querySelector('button');
+    button?.click();
+
+    // Assert
+    const player = TestBed.inject(PlayerState);
+    expect(player.current()?.recording.id).toBe('r1');
   });
 
   it('shows an explicit empty state for a practice with no recordings', async () => {

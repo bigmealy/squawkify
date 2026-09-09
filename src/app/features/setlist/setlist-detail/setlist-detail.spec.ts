@@ -4,6 +4,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { provideRouter } from '@angular/router';
 import { SetlistDetail } from './setlist-detail';
 import { flushManifests } from '../../../testing/flush-manifests';
+import { PlayerState } from '../../../playback/player-state';
 import { Song } from '../../../models/song';
 import { Practice } from '../../../models/practice';
 import { Recording } from '../../../models/recording';
@@ -60,6 +61,33 @@ describe('SetlistDetail', () => {
     const take2Index = text.indexOf('Take 2');
     expect(take2Index).toBeGreaterThanOrEqual(0);
     expect(take1Index).toBeGreaterThan(take2Index);
+  });
+
+  it('starts playback of the clicked recording', async () => {
+    // Arrange
+    const song: Song = { id: 's1', title: 'Song With Takes' };
+    const practice: Practice = { id: 'p1', date: '2026-01-01', venue: 'Room 1' };
+    const recording: Recording = {
+      id: 'r1',
+      songId: song.id,
+      practiceId: practice.id,
+      url: 'https://example.com/r1.mp3',
+      takeLabel: 'Take 1',
+    };
+
+    // Act
+    const fixture = TestBed.createComponent(SetlistDetail);
+    fixture.componentRef.setInput('songId', song.id);
+    TestBed.tick();
+    flushManifests(httpMock, { songs: [song], practices: [practice], recordings: [recording] });
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const button = (fixture.nativeElement as HTMLElement).querySelector('button');
+    button?.click();
+
+    // Assert
+    const player = TestBed.inject(PlayerState);
+    expect(player.current()?.recording.id).toBe('r1');
   });
 
   it('shows an explicit empty state for a song with no recordings', async () => {

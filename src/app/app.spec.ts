@@ -2,9 +2,10 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { App } from './app';
 
-// App is now just router chrome (nav + <router-outlet>) — it no longer
-// injects RehearsalData itself (that moved into the feature components
-// under features/), so these tests don't need HttpClientTesting.
+// App is just router chrome (nav + <router-outlet>) plus an included
+// <app-mini-player> — it knows nothing about playback itself, so these tests
+// don't need HttpClientTesting. Mini-player behavior is covered by
+// playback/mini-player/mini-player.spec.ts.
 describe('App', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
