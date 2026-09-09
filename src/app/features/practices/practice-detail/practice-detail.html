@@ -1,6 +1,10 @@
 <a routerLink="/practices">&larr; Back to practices</a>
 
-@if (group(); as g) {
+@if (data.isLoading()) {
+  <p>Loading…</p>
+} @else if (data.error()) {
+  <p>Failed to load the practice.</p>
+} @else if (group(); as g) {
   <h1>{{ g.practice.date }} — {{ g.practice.venue }}</h1>
   @if (g.practice.label) {
     <p>{{ g.practice.label }}</p>

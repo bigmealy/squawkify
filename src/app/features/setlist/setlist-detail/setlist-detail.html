@@ -1,6 +1,10 @@
 <a routerLink="/setlist">&larr; Back to setlist</a>
 
-@if (group(); as g) {
+@if (data.isLoading()) {
+  <p>Loading…</p>
+} @else if (data.error()) {
+  <p>Failed to load the setlist.</p>
+} @else if (group(); as g) {
   <h1>{{ g.song.title }}</h1>
   @if (g.recordings.length > 0) {
     <ul>

@@ -128,4 +128,19 @@ describe('PracticeDetail', () => {
     const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
     expect(text).toContain('Practice not found');
   });
+
+  it('shows a loading state before manifests resolve, not a false not-found', () => {
+    // Act
+    const fixture = TestBed.createComponent(PracticeDetail);
+    fixture.componentRef.setInput('practiceId', 'p1');
+    TestBed.tick();
+
+    // Assert
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(text).toContain('Loading');
+    expect(text).not.toContain('Practice not found');
+
+    // Cleanup
+    httpMock.match(() => true).forEach((req) => req.flush([]));
+  });
 });
