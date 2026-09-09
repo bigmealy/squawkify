@@ -89,13 +89,42 @@ Stage 3 complete — single-track playback, mini-player, `<audio>` wiring,
 play/pause/scrub, "Play all" queueing with stop-at-end behavior, and
 Previous/Next transport controls are all in place.
 
-## Stage 4 — PWA install
+## Stage 4 — PWA install ✅
 
-- `ng add @angular/pwa`.
-- Icons, web manifest.
-- Base service worker: app-shell/JSON caching only. Leave the `ngsw`
-  audio `dataGroup` (opportunistic caching) out for now — deferred item.
-- Confirm "add to home screen" works on a real phone.
+- `ng add @angular/pwa`. ✅ — added `@angular/service-worker`,
+  `ngsw-config.json`, `manifest.webmanifest`, and `provideServiceWorker`
+  in `src/app/app.config.ts`; `angular.json`'s production config builds
+  with `serviceWorker: "ngsw-config.json"`.
+- Icons, web manifest. ✅ — app branded "Squawkify" (band: Seagles); real
+  "Seagles — An Eagles Tribute" badge artwork composited full-bleed onto
+  a navy square (white background removed and replaced with the badge's
+  own navy, circle scaled to ~80% of the canvas so it survives circular/
+  rounded-corner masking on Android and iOS without clipping) and
+  rendered into the standard Angular PWA icon set (72–512px) plus a
+  180×180 `apple-touch-icon`, all in `public/icons/`. `manifest.webmanifest`
+  has real `name`/`short_name`/`description`/`theme_color`/`background_color`
+  (`#092439`, sampled directly from the badge's navy fill). `index.html`
+  also carries `apple-mobile-web-app-*` meta tags for reliable iOS
+  standalone-mode install.
+- Base service worker: app-shell/JSON caching only. ✅ — the three
+  `public/data/*.json` manifests (songs/practices/recordings) were added
+  to `ngsw-config.json`'s `"app"` asset group (prefetch, alongside the
+  app shell), verified via a production build + local static serve that
+  the service worker registers, activates, and caches all three JSON
+  files. The `ngsw` audio `dataGroup` (opportunistic caching) is
+  correctly left out — deferred item, unchanged.
+- Confirm "add to home screen" works on a real phone. **Deferred to Stage
+  6** — real installability needs HTTPS, which only exists once the app
+  is actually deployed (Stage 6 already lists install-flow verification
+  as a to-do there). Local verification instead: production build served
+  statically, confirmed in Chrome DevTools that the manifest parses
+  correctly with all icons loading, and the service worker
+  registers/activates with the expected app-shell + JSON caches
+  populated.
+
+Stage 4 complete — PWA manifest, real branding/icons, and a base
+app-shell/JSON service worker are in place; only real-phone install
+confirmation carries over to Stage 6's device shakedown.
 
 ## Stage 5 — Lock-screen / background playback
 
