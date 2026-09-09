@@ -63,9 +63,10 @@ in place with no audio playback yet.
   detail rows call it through component methods (`onPlay`), not directly
   from templates. Covered by `player-state.spec.ts` and
   `mini-player.spec.ts`.
-- "Play all" queue logic for both song-versions and practice-sets. Not
-  started — only single-track play from a row's Play button exists so
-  far.
+- "Play all" queue logic for practice-sets. Not started — only
+  single-track play from a row's Play button exists so far. (Song-version
+  "play all" dropped — not needed: takes of a song are alternate versions,
+  not a sequence you'd play through.)
 - Stop-at-end behavior (no auto-loop back to start). Not deliberately
   implemented yet — true today only because there's no queue to
   auto-advance into; revisit once "Play all" lands.
