@@ -172,58 +172,79 @@ lock-screen transport controls are all in place and verified in-browser;
 only the actual-iOS-device confirmation carries over to Stage 7's device
 shakedown.
 
-## Stage 6 — UI/UX design pass
+## Stage 6 — UI/UX design pass ✅
 
 - Mobile-first responsive redesign across the whole app, not just the
   mini-player: a dark, navy-forward theme (`#092439` base, cream text,
   gold/amber accents) extending the existing app icon's own badge
   palette, driven by a small design-token file
-  (`src/styles/_tokens.scss`) rather than one-off hardcoded colors.
+  (`src/styles/_tokens.scss`) rather than one-off hardcoded colors. ✅
 - A single morphing shared header (`src/app/shell/header/`) replacing
   the previous plain `<nav>` in `app.html`: burger + app title on list
   views below ~768px, horizontal Setlist/Practices tabs above ~768px
   (no burger needed at tablet/desktop widths), and an iOS-style back
   chevron + page title on detail views. Back navigation uses real
   browser history (`Location.back()`), falling back to the parent list
-  route on a deep link with no history.
+  route on a deep link with no history. ✅
 - A simple nav drawer (`src/app/shell/nav-drawer/`, native `<dialog>`
   for free focus-trapping/Escape-to-close) for the burger menu — just
-  the two existing Setlist/Practices links.
+  the two existing Setlist/Practices links. ✅
 - List/detail view restyle (`setlist-list`, `setlist-detail`,
   `practices-list`, `practice-detail`): card-style rows, proper
   touch-target sizing, and a currently-playing highlight driven by the
-  existing `PlayerState.current()` signal (no new playback logic).
+  existing `PlayerState.current()` signal (no new playback logic). ✅
 - Visual styling/layout pass over the mini-player, queue behavior, and
   Previous/Next transport controls — shape and behavior are already in
   place from Stage 3/5. Native `<audio controls>` is replaced with a
   custom Prev/Play-Pause/Next + scrub-bar transport UI for visual
   consistency with the rest of the redesign, still backed by the same
   `<audio>` element and `PlayerState`/Media Session wiring. Includes
-  `env(safe-area-inset-bottom)` handling for the iOS home indicator.
-- Covers the "Player UI details" item currently listed under Deferred
-  below.
+  `env(safe-area-inset-bottom)` handling for the iOS home indicator. ✅
+- Covers the "Player UI details" item previously listed under Deferred
+  — removed from that list now that it's done.
 
-## Stage 7 — Deploy & real-device shakedown
+Stage 6 complete — navy/gold theme, morphing header, nav drawer, card-style
+list/detail views, and the custom mini-player transport UI are all in
+place (`src/app/shell/`, `src/styles/_tokens.scss`, restyled
+`mini-player`).
+
+## Stage 7 — Deploy & real-device shakedown (deploy done, device shakedown outstanding)
 
 - Create a personal GitHub repo, push, `git remote add origin` /
-  `git push -u origin main`.
+  `git push -u origin main`. ✅ — pushed to `bigmealy/squawkify` on
+  GitHub; recording/practice/song JSON manifests are `git-crypt`
+  encrypted in the repo (real Dropbox links + band data shouldn't be
+  public even though the repo/URL is otherwise unlisted).
 - Create the Azure Static Web App resource (Portal or `az
   staticwebapp create`), linked to that repo/branch, unlisted URL, no
   auth yet:
   - App location `/`, output location
     `dist/band-rehearsal-player/browser` (must include the `/browser`
     suffix — verify manually even if a preset autofills something
-    else).
-  - Api location blank (no Azure Functions API).
+    else). ✅ — resolved via a CI-built workflow (`skip_app_build:
+    true`, `app_location: dist/band-rehearsal-player/browser`,
+    `output_location: ""`) rather than Azure's own Oryx build, since
+    Oryx can't unlock `git-crypt` to build the encrypted manifests.
+  - Api location blank (no Azure Functions API). ✅
   - Let the wizard auto-generate the GitHub Actions workflow and
     deployment-token secret — don't hand-author one in advance.
+    **Deviated**: hand-authored `.github/workflows/azure-static-web-apps.yml`
+    instead, to add the `git-crypt` unlock step before build (needs a
+    `GIT_CRYPT_KEY` secret alongside the wizard's own
+    `AZURE_STATIC_WEB_APPS_API_TOKEN`).
 - Confirm the `*.azurestaticapps.net` URL loads the live app after the
-  workflow runs.
+  workflow runs. ✅ — resource created, secrets set, workflow green,
+  live URL confirmed loading the app.
 - Test with actual Dropbox links on phones (iOS Safari + Android
-  Chrome).
-- Verify range-request seeking/scrubbing.
-- Verify background audio and install flow.
+  Chrome). **Not done yet.**
+- Verify range-request seeking/scrubbing. **Not done yet.**
+- Verify background audio and install flow. **Not done yet.**
 - Fix whatever breaks here before telling the band it's ready.
+
+Deploy pipeline is live (`bigmealy/squawkify` → Azure Static Web Apps,
+encrypted manifests unlocked in CI); the real-device shakedown — phones,
+range-request scrubbing, background audio, install flow — is the one
+remaining item before this is ready to hand to the band.
 
 ## Deferred (explicitly not in the critical path)
 
