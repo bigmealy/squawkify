@@ -284,6 +284,32 @@ Stage 7 fully done.
 - **Still deferred**: no visible error/retry UI if a load fails outright
   (today it just silently resets to paused/0:00) — see below.
 
+## Stage 9 — iOS home-screen polish ✅
+
+- Diagnosed a real-world report: on an iPhone, the installed home-screen
+  app's header (burger menu + "Squawkify" title) rendered underneath the
+  clock/status bar, making the burger hard to tap. Root cause:
+  `apple-mobile-web-app-status-bar-style: black-translucent` (paired with
+  `viewport-fit=cover`) deliberately renders edge-to-edge under the status
+  bar, but nothing in the app was applying `env(safe-area-inset-top)` —
+  only `safe-area-inset-bottom` was handled (mini-player, main content).
+  Fixed by adding a `padding-top: calc(... + env(safe-area-inset-top,
+  0px))` override to `.app-header` (`src/app/shell/header/header.scss`)
+  and `.nav-drawer` (`src/app/shell/nav-drawer/nav-drawer.scss`), mirroring
+  the existing bottom-inset pattern. Falls back to `0px` on non-iOS/normal
+  browser tabs, so no visual change there.
+- Diagnosed a second gap while investigating: the Angular service worker
+  (`ngsw`) downloads new app-shell builds in the background on each deploy,
+  but nothing in the app ever surfaced that to the user or activated it —
+  an installed iOS home-screen app could silently keep running a stale
+  build across several deploys, since it rarely gets a true fresh
+  load/relaunch. Added `src/app/shell/update-toast/` (`UpdateToast`
+  component, wired into `app.html`): checks for updates via `SwUpdate` on
+  `visibilitychange`→visible and every 30 minutes while foregrounded, shows
+  a "new version available" bar with a Refresh button on `VERSION_READY`,
+  and force-reloads immediately on `unrecoverable`. Verified live on a
+  physical iPhone against a real deploy.
+
 ## Deferred (explicitly not in the critical path)
 
 - **SWA auth**: `staticwebapp.config.json` + role-gated routes for the 6
