@@ -1,5 +1,8 @@
 import { Component, effect, ElementRef, inject, viewChild } from '@angular/core';
 import { PlayerState } from '../player-state';
+import { buildMediaMetadata } from '../media-session';
+
+const hasMediaSession = () => 'mediaSession' in navigator;
 
 @Component({
   selector: 'app-mini-player',
@@ -22,15 +25,41 @@ export class MiniPlayer {
       audio.src = current.recording.url;
       // Optional chaining: in tests, HTMLMediaElement.play() may not return a Promise.
       audio.play()?.catch(() => this.player.setPlaying(false));
+
+      if (hasMediaSession()) {
+        navigator.mediaSession.metadata = buildMediaMetadata(current);
+      }
     });
+
+    // Deliberately no 'seekto'/setPositionState handler: on iOS, registering
+    // those makes the lock screen show skip-forward/back-15s buttons instead
+    // of previous/next track buttons, which is the opposite of what's wanted
+    // here.
+    if (hasMediaSession()) {
+      navigator.mediaSession.setActionHandler('play', () => this.audioRef().nativeElement.play());
+      navigator.mediaSession.setActionHandler('pause', () => this.audioRef().nativeElement.pause());
+
+      effect(() => {
+        navigator.mediaSession.setActionHandler(
+          'previoustrack',
+          this.player.hasPrevious() ? () => this.onPrevious() : null,
+        );
+        navigator.mediaSession.setActionHandler(
+          'nexttrack',
+          this.player.hasNext() ? () => this.onNext() : null,
+        );
+      });
+    }
   }
 
   protected onAudioPlay(): void {
     this.player.setPlaying(true);
+    if (hasMediaSession()) navigator.mediaSession.playbackState = 'playing';
   }
 
   protected onAudioPause(): void {
     this.player.setPlaying(false);
+    if (hasMediaSession()) navigator.mediaSession.playbackState = 'paused';
   }
 
   protected onAudioEnded(): void {

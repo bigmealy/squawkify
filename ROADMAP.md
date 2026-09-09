@@ -126,14 +126,51 @@ Stage 4 complete — PWA manifest, real branding/icons, and a base
 app-shell/JSON service worker are in place; only real-phone install
 confirmation carries over to Stage 6's device shakedown.
 
-## Stage 5 — Lock-screen / background playback
+## Stage 5 — Lock-screen / background playback (mostly complete)
 
-- Media Session API metadata + transport handlers.
+- Media Session API metadata + transport handlers. ✅ —
+  `buildMediaMetadata()` (`src/app/playback/media-session.ts`) builds a
+  `MediaMetadata` (title + take label, album from practice
+  label/venue + date, generated artwork) from the current
+  `JoinedRecording`; wired into `MiniPlayer`
+  (`src/app/playback/mini-player/mini-player.ts`), which is the one place
+  that already holds both the real `<audio>` element and `PlayerState`.
+  `play`/`pause` action handlers call the audio element directly;
+  `previoustrack`/`nexttrack` handlers are toggled on/off (via `null`) in
+  step with `PlayerState.hasPrevious`/`hasNext`, mirroring the mini-player
+  buttons' own `[disabled]` logic. `playbackState` ('playing'/'paused') is
+  kept in sync from the existing `(play)`/`(pause)` event handlers. All
+  `navigator.mediaSession` access is guarded by `'mediaSession' in navigator`
+  so it's a no-op in environments without support (including the Vitest/
+  jsdom test environment — existing specs pass unmodified). **Deliberately
+  not implemented:** `seekto`/`setPositionState` (lock-screen scrub-bar
+  seeking) — on iOS, registering those replaces the previous/next track
+  buttons with skip-forward/back-15s buttons, which is the opposite of
+  what's wanted here.
 - Placeholder artwork generation (color block + initials) for lock-screen
-  display.
+  display. ✅ — `src/app/playback/artwork.ts`: `hueFor(song.id)` hashes
+  each song to a stable HSL hue (no hand-maintained palette needed),
+  `initialsFor(song.title)` derives up to two initials, and
+  `songArtworkDataUrl()` renders both onto a 512×512 canvas at runtime,
+  returned as a `data:image/png` URL (or `null` if canvas 2D rendering is
+  unavailable, so metadata omits artwork rather than throwing). Covered
+  by `artwork.spec.ts`. Verified in-browser (`ng serve` + Chrome) that
+  real songs render distinct color blocks with correct initials and that
+  `navigator.mediaSession.metadata` reflects title/album/artwork
+  correctly for both single-track and "Play all" queue playback,
+  including metadata/enabled-state updates as the queue advances.
 - Verify background/backgrounded-tab playback doesn't pause on
   visibility-change — test on an actual iOS device, since that's the
-  flaky case.
+  flaky case. **Deferred to Stage 6** (real-device shakedown) — no code
+  anywhere currently listens for `visibilitychange`, so this is a
+  verification-only item, not a code change, unless real-device testing
+  turns up a problem.
+
+Stage 5 complete except real-device verification — Media Session
+metadata, generated placeholder artwork, and play/pause/previous/next
+lock-screen transport controls are all in place and verified in-browser;
+only the actual-iOS-device confirmation carries over to Stage 6's device
+shakedown.
 
 ## Stage 6 — Deploy & real-device shakedown
 
