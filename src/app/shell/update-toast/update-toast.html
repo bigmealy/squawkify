@@ -1,0 +1,6 @@
+@if (updateReady()) {
+  <div class="update-toast" role="status">
+    <span>A new version of Squawkify is available.</span>
+    <button type="button" class="update-toast__button" (click)="reload()">Refresh</button>
+  </div>
+}
