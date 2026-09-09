@@ -49,14 +49,32 @@ in place with no audio playback yet.
 ## Stage 3 — Playback
 
 - Persistent mini-player component (Spotify-style bar, not a full-screen
-  now-playing view).
+  now-playing view). ✅ — `MiniPlayer` (`src/app/playback/mini-player/`),
+  a sticky footer bar hidden until a recording is selected, then showing
+  song title + take label.
 - `<audio>` element wired to Dropbox raw links (`raw=1` /
-  `dl.dropboxusercontent.com` style, not the Dropbox API).
-- Play/pause/scrub.
-- "Play all" queue logic for both song-versions and practice-sets.
-- Stop-at-end behavior (no auto-loop back to start).
+  `dl.dropboxusercontent.com` style, not the Dropbox API). ✅ — real
+  `raw=1` URLs from `recordings.json`, set imperatively on the `<audio>`
+  element (rather than via an `[src]` binding) so it's guaranteed to land
+  before `play()` is called.
+- Play/pause/scrub. ✅ — via the native `<audio controls>` element.
+  `PlayerState` (root-provided signal service, `src/app/playback/`) is
+  the single source of truth for what's current/playing; Setlist/Practice
+  detail rows call it through component methods (`onPlay`), not directly
+  from templates. Covered by `player-state.spec.ts` and
+  `mini-player.spec.ts`.
+- "Play all" queue logic for both song-versions and practice-sets. Not
+  started — only single-track play from a row's Play button exists so
+  far.
+- Stop-at-end behavior (no auto-loop back to start). Not deliberately
+  implemented yet — true today only because there's no queue to
+  auto-advance into; revisit once "Play all" lands.
 - This is the core value of the app — everything before it is
   scaffolding.
+
+Stage 3 in progress — single-track playback landed (mini-player, `<audio>`
+wiring, play/pause/scrub via native controls). Queueing and stop-at-end
+still to come.
 
 ## Stage 4 — PWA install
 
