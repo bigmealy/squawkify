@@ -1,0 +1,6 @@
+{
+  "navigationFallback": {
+    "rewrite": "/index.html",
+    "exclude": ["/assets/*", "/data/*", "/fonts/*", "/icons/*", "*.{css,js,json,ico,png,jpg,svg,webmanifest}"]
+  }
+}
