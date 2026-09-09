@@ -46,7 +46,7 @@ should be shippable/demoable before moving to the next.
 Stage 2 complete — data model, manifests, loading, and navigation are all
 in place with no audio playback yet.
 
-## Stage 3 — Playback
+## Stage 3 — Playback ✅
 
 - Persistent mini-player component (Spotify-style bar, not a full-screen
   now-playing view). ✅ — `MiniPlayer` (`src/app/playback/mini-player/`),
