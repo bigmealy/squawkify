@@ -61,4 +61,61 @@ describe('PlayerState', () => {
     TestBed.tick();
     expect(notifications).toBe(3);
   });
+
+  it('playAll() starts the queue at the first item and marks playing', () => {
+    const player = TestBed.inject(PlayerState);
+    const items = [makeItem('r1'), makeItem('r2')];
+
+    player.playAll(items);
+
+    expect(player.current()).toBe(items[0]);
+    expect(player.isPlaying()).toBe(true);
+  });
+
+  it('playAll() with an empty list is a no-op', () => {
+    const player = TestBed.inject(PlayerState);
+
+    player.playAll([]);
+
+    expect(player.current()).toBeNull();
+    expect(player.isPlaying()).toBe(false);
+  });
+
+  it('playNext() advances to the next queued item', () => {
+    const player = TestBed.inject(PlayerState);
+    const items = [makeItem('r1'), makeItem('r2'), makeItem('r3')];
+    player.playAll(items);
+
+    player.playNext();
+
+    expect(player.current()).toBe(items[1]);
+    expect(player.isPlaying()).toBe(true);
+  });
+
+  it('playNext() stops after the last queued item instead of looping back', () => {
+    const player = TestBed.inject(PlayerState);
+    const items = [makeItem('r1'), makeItem('r2')];
+    player.playAll(items);
+
+    player.playNext(); // -> r2 (last item)
+    player.playNext(); // queue exhausted
+
+    expect(player.current()).toBe(items[1]);
+
+    // A further call stays a safe no-op.
+    player.playNext();
+    expect(player.current()).toBe(items[1]);
+  });
+
+  it('play() interrupts an active queue so a later playNext() does not resume it', () => {
+    const player = TestBed.inject(PlayerState);
+    const queued = [makeItem('r1'), makeItem('r2')];
+    const single = makeItem('r3');
+    player.playAll(queued);
+
+    player.play(single);
+    player.playNext();
+
+    expect(player.current()).toBe(single);
+  });
 });

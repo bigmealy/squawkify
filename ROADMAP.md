@@ -63,19 +63,23 @@ in place with no audio playback yet.
   detail rows call it through component methods (`onPlay`), not directly
   from templates. Covered by `player-state.spec.ts` and
   `mini-player.spec.ts`.
-- "Play all" queue logic for practice-sets. Not started — only
-  single-track play from a row's Play button exists so far. (Song-version
-  "play all" dropped — not needed: takes of a song are alternate versions,
-  not a sequence you'd play through.)
-- Stop-at-end behavior (no auto-loop back to start). Not deliberately
-  implemented yet — true today only because there's no queue to
-  auto-advance into; revisit once "Play all" lands.
+- "Play all" queue logic for practice-sets. ✅ — `PlayerState.playAll()`/
+  `playNext()` (`src/app/playback/player-state.ts`) drive a queue seeded
+  from a practice's already-`setOrder`-sorted recordings; `PracticeDetail`
+  has a "Play all" button above its recording list. (Song-version "play
+  all" dropped — not needed: takes of a song are alternate versions, not a
+  sequence you'd play through.)
+- Stop-at-end behavior (no auto-loop back to start). ✅ — `playNext()`
+  clears queue state and stops instead of wrapping once the last queued
+  recording finishes; verified manually that a queue plays through in
+  order and halts on the final track. A per-row "Play" click correctly
+  interrupts an active queue.
 - This is the core value of the app — everything before it is
   scaffolding.
 
-Stage 3 in progress — single-track playback landed (mini-player, `<audio>`
-wiring, play/pause/scrub via native controls). Queueing and stop-at-end
-still to come.
+Stage 3 complete — single-track playback, mini-player, `<audio>` wiring,
+play/pause/scrub, and "Play all" queueing with stop-at-end behavior are all
+in place.
 
 ## Stage 4 — PWA install
 

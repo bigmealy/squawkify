@@ -21,4 +21,8 @@ export class PracticeDetail {
   protected onPlay(item: JoinedRecording): void {
     this.player.play(item);
   }
+
+  protected onPlayAll(items: JoinedRecording[]): void {
+    this.player.playAll(items);
+  }
 }

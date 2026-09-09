@@ -119,12 +119,77 @@ describe('PracticeDetail', () => {
     flushManifests(httpMock, { songs: [song], practices: [practice], recordings: [recording] });
     await fixture.whenStable();
     fixture.detectChanges();
-    const button = (fixture.nativeElement as HTMLElement).querySelector('button');
+    const button = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+      'li button',
+    );
     button?.click();
 
     // Assert
     const player = TestBed.inject(PlayerState);
     expect(player.current()?.recording.id).toBe('r1');
+  });
+
+  it('shows a "Play all" button and starts the queue at the first recording', async () => {
+    // Arrange
+    const practice: Practice = { id: 'p1', date: '2026-01-01', venue: 'Room 1' };
+    const songFirst: Song = { id: 's1', title: 'Song First' };
+    const songSecond: Song = { id: 's2', title: 'Song Second' };
+    const recordingFirst: Recording = {
+      id: 'r1',
+      songId: songFirst.id,
+      practiceId: practice.id,
+      url: 'https://example.com/r1.mp3',
+      setOrder: 1,
+    };
+    const recordingSecond: Recording = {
+      id: 'r2',
+      songId: songSecond.id,
+      practiceId: practice.id,
+      url: 'https://example.com/r2.mp3',
+      setOrder: 2,
+    };
+
+    // Act
+    const fixture = TestBed.createComponent(PracticeDetail);
+    fixture.componentRef.setInput('practiceId', practice.id);
+    TestBed.tick();
+    flushManifests(httpMock, {
+      songs: [songFirst, songSecond],
+      practices: [practice],
+      recordings: [recordingFirst, recordingSecond],
+    });
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+    const playAllButton = Array.from(compiled.querySelectorAll<HTMLButtonElement>('button')).find(
+      (btn) => btn.textContent?.trim() === 'Play all',
+    );
+    expect(playAllButton).toBeTruthy();
+    playAllButton?.click();
+
+    // Assert — queue starts at the first (set-order-sorted) recording
+    const player = TestBed.inject(PlayerState);
+    expect(player.current()?.recording.id).toBe('r1');
+  });
+
+  it('does not show a "Play all" button when the practice has no recordings', async () => {
+    // Arrange
+    const practice: Practice = { id: 'p1', date: '2026-01-01', venue: 'Room 1' };
+
+    // Act
+    const fixture = TestBed.createComponent(PracticeDetail);
+    fixture.componentRef.setInput('practiceId', practice.id);
+    TestBed.tick();
+    flushManifests(httpMock, { practices: [practice] });
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    // Assert
+    const compiled = fixture.nativeElement as HTMLElement;
+    const playAllButton = Array.from(compiled.querySelectorAll<HTMLButtonElement>('button')).find(
+      (btn) => btn.textContent?.trim() === 'Play all',
+    );
+    expect(playAllButton).toBeFalsy();
   });
 
   it('shows an explicit empty state for a practice with no recordings', async () => {

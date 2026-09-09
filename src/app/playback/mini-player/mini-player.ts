@@ -34,6 +34,10 @@ export class MiniPlayer {
   }
 
   protected onAudioEnded(): void {
+    // Order matters: playNext() may set isPlaying back to true (advancing a
+    // "Play all" queue), so setPlaying(false) must run first or it would
+    // stomp that back to false.
     this.player.setPlaying(false);
+    this.player.playNext();
   }
 }

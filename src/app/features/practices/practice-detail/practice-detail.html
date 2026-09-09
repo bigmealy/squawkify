@@ -10,6 +10,7 @@
     <p>{{ g.practice.label }}</p>
   }
   @if (g.recordings.length > 0) {
+    <button type="button" (click)="onPlayAll(g.recordings)">Play all</button>
     <ul>
       @for (item of g.recordings; track item.recording.id) {
         <li>
