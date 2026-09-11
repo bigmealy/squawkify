@@ -30,7 +30,7 @@
   "dataGroups": [
     {
       "name": "dropbox-recordings",
-      "urls": ["https://www.dropbox.com/scl/fo/dox9cb34zrcvx0acjyjno/**"],
+      "urls": ["https://www.dropbox.com/scl/fo/**"],
       "cacheConfig": {
         "strategy": "performance",
         "maxSize": 100,
