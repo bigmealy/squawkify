@@ -1,8 +1,16 @@
-import { Component, computed, effect, ElementRef, inject, signal, viewChild } from '@angular/core';
+import {
+  Component,
+  computed,
+  DestroyRef,
+  effect,
+  ElementRef,
+  inject,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { PlayerState } from '../player-state';
 import { buildMediaMetadata } from '../media-session';
 import { formatTime } from '../format-time';
-import { warmRecordingCache } from '../recording-cache';
 
 const hasMediaSession = () => 'mediaSession' in navigator;
 
@@ -14,6 +22,7 @@ const hasMediaSession = () => 'mediaSession' in navigator;
 export class MiniPlayer {
   protected readonly player = inject(PlayerState);
   private readonly audioRef = viewChild.required<ElementRef<HTMLAudioElement>>('audioEl');
+  private readonly destroyRef = inject(DestroyRef);
 
   protected readonly currentTime = signal(0);
   protected readonly duration = signal(0);
@@ -21,24 +30,86 @@ export class MiniPlayer {
   protected readonly formattedCurrentTime = computed(() => formatTime(this.currentTime()));
   protected readonly formattedDuration = computed(() => formatTime(this.duration()));
 
+  // Tracks the blob URL currently (or most recently) assigned to the <audio>
+  // element, so it can be revoked once superseded — see the effect below.
+  private currentObjectUrl: string | null = null;
+
   constructor() {
-    effect(() => {
+    effect((onCleanup) => {
+      // Must be read synchronously, before any `await` below — Angular only
+      // tracks signal reads made during an effect's synchronous execution.
       const current = this.player.current();
       if (!current) return;
-      // Set src imperatively (rather than via an [src] template binding) so it's
-      // guaranteed to land before play() is called — a declarative [src] binding
-      // can still be pending when this effect runs, causing play() to reject
-      // with NotSupportedError on the very first click.
-      const audio = this.audioRef().nativeElement;
-      audio.src = current.recording.url;
+
       this.currentTime.set(0);
       this.duration.set(0);
-      // Optional chaining: in tests, HTMLMediaElement.play() may not return a Promise.
-      audio.play()?.catch(() => this.player.setPlaying(false));
+      this.isLoading.set(true);
 
-      if (hasMediaSession()) {
-        navigator.mediaSession.metadata = buildMediaMetadata(current);
-      }
+      const controller = new AbortController();
+      // Aborts a still-in-flight prefetch when the user skips to another
+      // track before it resolves, or when the component is destroyed.
+      onCleanup(() => controller.abort());
+
+      const url = current.recording.url;
+      const audio = this.audioRef().nativeElement;
+
+      (async () => {
+        try {
+          // Default (cors) mode, not no-cors: we need a readable, non-opaque
+          // response so `.blob()` works. Dropbox's dl.dropboxusercontent.com
+          // sends `access-control-allow-origin: *` on both plain and
+          // Range-bearing GETs (confirmed via curl), so this succeeds.
+          const response = await fetch(url, { signal: controller.signal });
+          if (!response.ok) throw new Error(`Prefetch failed: ${response.status}`);
+          const blob = await response.blob();
+
+          // Re-check after the awaits above: if the user has since skipped
+          // to another track, that effect run now owns all state — bail
+          // before creating an object URL nobody will ever use.
+          if (controller.signal.aborted) return;
+
+          const objectUrl = URL.createObjectURL(blob);
+          const previousObjectUrl = this.currentObjectUrl;
+          this.currentObjectUrl = objectUrl;
+
+          // From here to play(): no further `await`, so `.src` lands in the
+          // same synchronous continuation as play() — a declarative [src]
+          // binding (or any gap between the two) can leave play() rejecting
+          // with NotSupportedError. Assign the new src before revoking the
+          // old one, so the old URL is never revoked while still live.
+          audio.src = objectUrl;
+          if (previousObjectUrl) URL.revokeObjectURL(previousObjectUrl);
+          this.isLoading.set(false);
+          // Optional chaining: in tests, HTMLMediaElement.play() may not return a Promise.
+          audio.play()?.catch(() => this.player.setPlaying(false));
+
+          if (hasMediaSession()) {
+            navigator.mediaSession.metadata = buildMediaMetadata(current);
+          }
+        } catch (err) {
+          if (controller.signal.aborted || (err instanceof DOMException && err.name === 'AbortError')) {
+            // Superseded by a newer track selection — nothing to do.
+            return;
+          }
+          // Prefetch genuinely failed (offline, non-2xx, transient Dropbox
+          // error): fall back to the old direct-streaming behavior so a
+          // failed prefetch doesn't break playback outright. isLoading is
+          // deliberately left `true` here — the native
+          // loadstart/waiting/canplay/error handlers below take over
+          // exactly as they did before this change, since it's a real
+          // network stream again.
+          audio.src = url;
+          audio.play()?.catch(() => this.player.setPlaying(false));
+
+          if (hasMediaSession()) {
+            navigator.mediaSession.metadata = buildMediaMetadata(current);
+          }
+        }
+      })();
+    });
+
+    this.destroyRef.onDestroy(() => {
+      if (this.currentObjectUrl) URL.revokeObjectURL(this.currentObjectUrl);
     });
 
     // Deliberately no 'seekto'/setPositionState handler: on iOS, registering
@@ -85,17 +156,7 @@ export class MiniPlayer {
   }
 
   protected onLoadedMetadata(): void {
-    const audio = this.audioRef().nativeElement;
-    this.duration.set(audio.duration);
-    // `.src` rather than `.currentSrc`: we set `.src` directly to an
-    // absolute URL ourselves (see the effect above), and `.currentSrc` only
-    // reflects the browser's resource-selection algorithm, which jsdom
-    // doesn't simulate in tests.
-    warmRecordingCache(audio.src);
-  }
-
-  protected onLoadStart(): void {
-    this.isLoading.set(true);
+    this.duration.set(this.audioRef().nativeElement.duration);
   }
 
   protected onWaiting(): void {

@@ -35,7 +35,7 @@
         "strategy": "performance",
         "maxSize": 100,
         "maxAge": "90d",
-        "cacheOpaqueResponses": true
+        "cacheOpaqueResponses": false
       }
     }
   ]
