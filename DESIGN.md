@@ -10,11 +10,12 @@ rehearsal and mixed afterward by the site owner.
 
 Two views over the same underlying data:
 
-1. **Setlist** — list of songs. Selecting a song shows every recording of
+1. **Practices** (default/landing view) — list of practices. Selecting a
+   practice shows the songs played that day, playable individually or as a
+   "play all" playlist.
+2. **Setlist** — list of songs. Selecting a song shows every recording of
    that song (with practice date etc.), playable individually or as a
    "play all versions" playlist.
-2. **Practices** — list of practices. Selecting a practice shows the songs
-   played that day, playable individually or as a "play all" playlist.
 
 Both views are just different groupings of the same recordings list, so no
 data duplication is needed — Setlist groups by song, Practices groups by

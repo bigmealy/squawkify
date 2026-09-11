@@ -1,7 +1,7 @@
 import { Routes } from '@angular/router';
 
 export const routes: Routes = [
-  { path: '', pathMatch: 'full', redirectTo: 'setlist' },
+  { path: '', pathMatch: 'full', redirectTo: 'practices' },
   {
     path: 'setlist',
     loadComponent: () =>
@@ -26,5 +26,5 @@ export const routes: Routes = [
       import('./features/practices/practice-detail/practice-detail').then((m) => m.PracticeDetail),
     data: { headerMode: 'detail', backFallback: '/practices' },
   },
-  { path: '**', redirectTo: 'setlist' },
+  { path: '**', redirectTo: 'practices' },
 ];

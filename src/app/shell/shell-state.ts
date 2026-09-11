@@ -18,7 +18,7 @@ export class ShellState {
   readonly headerMode = signal<HeaderMode>('list');
   readonly listTitle = signal('Squawkify');
   readonly detailTitle = signal('');
-  readonly backFallback = signal('/setlist');
+  readonly backFallback = signal('/practices');
 
   // Counts completed navigations so goBack() can tell a real "came from
   // somewhere in this session" back from a cold load straight into a detail
@@ -38,7 +38,7 @@ export class ShellState {
       while (route.firstChild) route = route.firstChild;
       this.headerMode.set((route.data['headerMode'] as HeaderMode | undefined) ?? 'list');
       this.listTitle.set((route.data['headerTitle'] as string | undefined) ?? 'Squawkify');
-      this.backFallback.set((route.data['backFallback'] as string | undefined) ?? '/setlist');
+      this.backFallback.set((route.data['backFallback'] as string | undefined) ?? '/practices');
     });
   }
 
