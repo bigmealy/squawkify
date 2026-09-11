@@ -66,8 +66,17 @@ no auto-discovery from Dropbox for now.
   `<audio>` element's own requests (playback still works, it just never
   gets cached). `<audio>` also has no `crossorigin` attribute here, so its
   requests are `no-cors` → opaque responses, which need
-  `cacheOpaqueResponses: true` to be cacheable at all — moot for the `206`
-  case, but relevant for the fix below.
+  `cacheOpaqueResponses: true` to be cacheable at all.
+  **Correction (2026-09-11):** contrary to what's implied above, opaque
+  responses turn out to be cacheable *regardless* of their true underlying
+  status — the Cache API's "can't store a `206`" restriction only inspects
+  a response's *exposed* status, and opaque responses always expose
+  status `0`. So an opaque, Range-bearing `206` response from `<audio>`'s
+  own request genuinely does get cached whenever
+  `cacheOpaqueResponses: true` — confirmed directly by inspecting Cache
+  Storage. This is exactly what caused the cache-poisoning bug described
+  in "Investigated: prefetch-then-blob playback" below — worth knowing
+  before touching `cacheOpaqueResponses` again.
   Resolution: `src/app/playback/recording-cache.ts`'s `warmRecordingCache()`
   fires a plain, headerless `fetch(url, { mode: 'no-cors' })` once a track's
   live stream has already loaded its metadata (called from
@@ -85,6 +94,119 @@ no auto-discovery from Dropbox for now.
   is available, seeking/scrubbing is decode-buffer-local and unaffected by
   how the bytes arrived. No byte-range slicing of the cached response is
   needed.
+
+## Investigated: prefetch-then-blob playback (2026-09-11, reverted)
+
+**Status: not implemented.** This was fully built, debugged, and then
+deliberately reverted in the same session after real-world testing turned
+up a Dropbox-side issue that wasn't resolved before time ran out. The
+code is back to the "Opportunistic caching" design above (unmodified).
+This section is a handoff note for whoever (human or Claude) picks this
+back up — it captures what was tried, what broke, what was fixed, and
+what's still unverified, so none of that has to be rediscovered.
+
+**Motivation.** The opportunistic-caching approach above only ever caches
+a *secondary*, best-effort warm-up request — the live `<audio>` stream
+itself is never cached, so even a fully-cached track still does a real
+network stream on every play; only a *second* play benefits, and only if
+the warm-up fetch won by the time you next hit play. The idea explored
+here was to make caching actually work for the primary playback path:
+`fetch()` the whole file, turn it into a `Blob`, and play from
+`URL.createObjectURL(blob)` — one request instead of two, and a real
+cache hit (near-instant, `(ServiceWorker)` in the Network tab) on replay.
+
+**What was built.** In `mini-player.ts`, the constructor `effect()` was
+rewritten to, on each track selection: `fetch(url, { signal })` (default
+`cors` mode, not `no-cors` — a `Blob` needs a readable response) inside an
+`AbortController`-scoped async IIFE, `await response.blob()`,
+`URL.createObjectURL(blob)`, assign that to `audio.src`, then `.play()` —
+with no `await` between the `.src` assignment and `.play()`, preserving
+an existing (already-hard-won) invariant that the two must land in the
+same synchronous continuation or `.play()` can reject with
+`NotSupportedError`. `AbortController` cancelled a stale in-flight fetch
+on rapid track-skipping or component destroy. A fetch failure fell back
+to the old direct-URL streaming behaviour (`audio.src = url` unmodified)
+so a bad prefetch wouldn't break playback outright. `recording-cache.ts`
+(the old warm-up-fetch file) became dead code and was deleted, since the
+single prefetch now does both jobs (playback + cache-warming) by itself.
+All of this is fully described, with exact code shape, in the plan file
+from that session if it's still around
+(`~/.claude/plans/foamy-scribbling-galaxy.md` at the time of writing) —
+worth reading in full before re-attempting, rather than re-deriving the
+design from scratch.
+
+**CORS was confirmed fine.** `curl -H "Origin: ..." <url> -L` against a
+real `recordings.json` URL showed Dropbox's `dl.dropboxusercontent.com`
+response (after the redirect) carries `access-control-allow-origin: *` on
+both plain and Range GETs — a default (`cors`-mode) `fetch()` should
+succeed non-opaque and `.blob()` should work. This part of the premise
+held up.
+
+**iOS Safari autoplay risk: accepted, never actually tested.** Inserting
+a real fetch before `.play()` risks the browser deciding too much time
+has passed since the user's tap to still honour `.play()`
+(`NotAllowedError`), since fetch involves genuine async scheduling rather
+than a same-tick continuation. The plan was to ship it and verify
+manually on a real device over LAN (`npm run serve-lan`, `ng serve --host
+0.0.0.0`, browse from the phone to the machine's LAN IP) — this part
+*did* get tested and **passed**: tapping play on an iPhone over LAN
+worked fine, no autoplay rejection observed. So this specific risk turned
+out to be a non-issue in practice, at least in the one test done.
+
+**Real bug found: opaque-response cache poisoning.** `ngsw-config.json`'s
+`dropbox-recordings` dataGroup had `cacheOpaqueResponses: true` (needed
+by the *old* no-cors warm-up approach). Left on, it caused this loop: any
+time the prefetch `fetch()` failed for *any* reason, the code fell back
+to `audio.src = <raw url>`, and the native `<audio>` element's own
+request for that URL — `no-cors`/opaque, Range-bearing — got cached
+because opaque responses are cacheable regardless of their real status
+(see the correction added to the "Opportunistic caching" note above).
+Because `ngsw` matches cache entries by URL only, that one bad opaque
+entry then got served to *every future* request for that URL, including
+the prefetch's own `cors`-mode `fetch()` — and per the Fetch spec, an
+opaque response can never satisfy a cors-mode request, so it permanently
+failed with `TypeError: Failed to fetch` from then on, re-triggering the
+fallback forever. Confirmed directly via
+`caches.open(name).then(c => c.match(url))` in DevTools: the cached entry
+showed `type: "opaque", status: 0`. **Fix identified and verified
+correct in isolation:** set `cacheOpaqueResponses: false` on that
+dataGroup — the prefetch's happy-path caching goes through the normal
+`res.ok` branch and never needed opaque caching to begin with, so this
+closes the poisoning loop with no downside. This fix was *not* re-applied
+on revert — it only matters if the prefetch-then-blob approach comes
+back, since the currently-live warm-up-fetch approach still needs
+`cacheOpaqueResponses: true` to work at all.
+
+**Blocker that ended the session: Dropbox rate-limiting (`503`).**
+During testing — a mix of manual replays and an automated browser
+reproduction session, each re-downloading a multi-megabyte file
+repeatedly in a short window — Dropbox started returning `503 Service
+Unavailable` for a growing fraction of requests, including for tracks
+that had never been touched before. This is almost certainly ordinary
+abuse/rate-limit protection on Dropbox's side reacting to request volume,
+not a bug in the code (the fallback behaviour handled it gracefully:
+playback degraded to direct streaming rather than breaking). But it made
+it impossible to cleanly verify the actual happy path — "prefetch
+succeeds → real cache entry written → replay is instant" — before time
+ran out; the throttle was still active more than 30 minutes after the
+heavy-testing burst, longer than expected.
+
+**Open questions for next time:**
+- Does normal, human-paced usage (one band member playing tracks at a
+  normal cadence, not automated rapid-fire testing) ever actually trip
+  this rate limit? Nothing here suggests it would, but it was never
+  confirmed clean — the whole session's testing volume may have been an
+  artefact of debugging, not representative of real usage.
+- If retried, re-apply the `cacheOpaqueResponses: false` fix from the
+  start, and test *sparingly* — a handful of plays with deliberate pauses
+  between them, not rapid repeated full-file fetches, to avoid
+  re-triggering Dropbox's throttling and burning another session on it.
+- Worth deciding upfront whether the full trade-off is even wanted:
+  prefetch-then-blob means playback no longer starts progressively (the
+  whole file — one sample was ~5MB — downloads before the first note
+  plays), versus the current approach's instant-start progressive
+  streaming with weaker (secondary-only) caching. That trade-off was
+  accepted going in, but is worth re-confirming as still desired.
 
 ## Site hosting — Azure Static Web Apps
 
