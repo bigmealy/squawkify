@@ -283,6 +283,11 @@ Stage 7 fully done.
   Dropbox instead of appearing to do nothing.
 - **Still deferred**: no visible error/retry UI if a load fails outright
   (today it just silently resets to paused/0:00) — see below.
+- **Superseded by Stage 10**: the `dropbox-recordings` dataGroup and
+  `recording-cache.ts`'s warm-up-fetch mechanic described here no longer
+  exist — replaced by the prefetch-then-blob approach and the move off
+  Dropbox entirely. This entry is kept as accurate history of what was
+  built and why at the time.
 
 ## Stage 9 — iOS home-screen polish ✅
 
@@ -310,17 +315,59 @@ Stage 7 fully done.
   and force-reloads immediately on `unrecoverable`. Verified live on a
   physical iPhone against a real deploy.
 
+## Stage 10 — Migrate audio hosting from Dropbox to Azure Blob Storage ✅
+
+- Diagnosed via real testing (not just theory) that Dropbox's shared-link
+  rate limiting triggers fast — a handful of requests within about a
+  minute of light manual testing was enough to get `503`s — and isn't
+  cleanly scoped per-file (an untouched file in a different practice's
+  folder got rate-limited too, within the same browser session), making
+  the Stage 8 caching approach fundamentally unreliable to build further
+  on.
+- Created Azure Storage account `squawkfiy` (West Europe, Standard/LRS,
+  Hot tier) and container `squawkify` (anonymous public **Blob** access);
+  bulk-migrated all 92 recordings via `azcopy`, preserving the existing
+  per-practice-dated-folder layout so the change was a mechanical URL
+  rewrite. `recordings.json` URLs and `ngsw-config.json`'s data group
+  (renamed `dropbox-recordings` → `recordings`) updated accordingly, with
+  every rewritten URL cross-checked against the actual uploaded blob names
+  (not just pattern-guessed from the old Dropbox URLs, which used two
+  different conventions across practices).
+- Found and fixed a second real bug during end-to-end verification: Azure
+  Blob Storage has no CORS rule at all by default, which silently broke
+  the fetch-based caching path (`fetch()` failed, fell back to plain
+  streaming, no visible error). Added a CORS rule scoped to the production
+  SWA origin (domain deliberately not written here — see DESIGN.md's note
+  on why, this repo is public) plus local dev ports — confirmed via `curl`
+  that the allowed origins get `access-control-allow-origin` and an
+  arbitrary untrusted origin doesn't.
+- Re-verified the prefetch-then-blob playback approach (previously
+  "investigated... reverted" per DESIGN.md, blocked on the Dropbox
+  rate-limiting issue above) actually works end-to-end now: real
+  `fetch()` succeeds, `audio.src` is a genuine `blob:` URL, the service
+  worker's cache holds a real entry (confirmed via Cache Storage
+  inspection), and a replay is served from cache rather than re-fetched
+  (confirmed via the cached entry's unchanged origin `Date` header).
+- `CLAUDE.md`'s practice-adding runbook rewritten for the new
+  `azcopy`-based upload workflow and simplified in the process: the old
+  per-practice `ngsw-config.json` pattern-broadening step no longer
+  applies, since the URL pattern is fixed to one account/container for
+  the project's lifetime — no more per-practice Dropbox share-link
+  minting either.
+- Committed as `494871a` on `prefetch-blob-playback` — not yet merged to
+  `main` as of this stage.
+
 ## Deferred (explicitly not in the critical path)
 
 - **SWA auth**: `staticwebapp.config.json` + role-gated routes for the 6
   band-mates. Bolt on once the unlisted URL feels insufficient — low
   cost, config-only addition.
-- **Dropbox auto-discovery**: no fixed trigger; only revisit if manifest
-  upkeep starts to feel like a burden.
+- **Azure Blob Storage auto-discovery**: no fixed trigger; only revisit if
+  manifest upkeep starts to feel like a burden.
 - **PWA install flow/UX**: manual instructions vs. in-app install
   prompt — not yet decided.
-- **Playback error/retry UX**: a failed `<audio>` load (e.g. Dropbox down
-  even after a cache miss) has no visible error state today — it just
-  silently resets to paused/0:00. The Stage 8 loading spinner clears on
+- **Playback error/retry UX**: a failed `<audio>` load (e.g. the storage
+  host down even after a cache miss) has no visible error state today —
+  it just silently resets to paused/0:00. The Stage 8 loading spinner clears on
   `error` so it doesn't hang forever, but there's still no message or
   retry affordance.

@@ -24,86 +24,94 @@ practice.
 ## Data model
 
 Three related lists, hand-maintained manifest files (JSON/CSV) initially —
-no auto-discovery from Dropbox for now.
+no auto-discovery from cloud storage for now.
 
 - **Songs** (canonical list): id/slug, title, maybe status (e.g.
   "learning" vs "gigging"). Exists independently of recordings, so a new
   song can be added before any recording of it exists.
 - **Practices**: date, venue, label.
-- **Recordings** (join table): `song_id`, `practice_id`, Dropbox URL,
-  take label, notes, `set_order` (explicit playback order within a
-  practice).
+- **Recordings** (join table): `song_id`, `practice_id`, recording URL
+  (see "Audio hosting" below for where that URL currently points), take
+  label, notes, `set_order` (explicit playback order within a practice).
 
-## Audio hosting — Dropbox
+## Audio hosting — Azure Blob Storage
 
-- Files live in a shared Dropbox folder, streamed (not downloaded) via
-  querystring-tweaked direct links (`raw=1` / `dl.dropboxusercontent.com`
-  style), not the Dropbox API.
-- Dropbox direct links generally support HTTP range requests, which is
-  needed for scrubbing/seeking in an `<audio>` element and for normal
-  mobile Safari streaming behavior.
-- Use one consistent link-generation method so links stay stable and
-  reproducible; regenerating share links in bulk could break existing
-  manifest entries.
-- CORS is unlikely to be an issue since playback is just `<audio src>`,
-  not fetch-based (would matter if a waveform view is ever added later).
-- **Caveat:** the audio files themselves are hit directly by the browser
-  via raw Dropbox URLs — they are not proxied through the site. Any auth
-  added to the site later only gates *discovery* of the manifest/setlist,
-  not the raw recording files themselves. Anyone with a Dropbox URL can
-  still play/download it without logging in. Acceptable for a 6-person
-  band, but worth remembering if recordings become sensitive.
-- Not a concern currently: Dropbox usage/bandwidth limits, given only 6
-  users.
-- **Opportunistic caching (implemented):** `ngsw-config.json` has a
-  `dataGroup` (`dropbox-recordings`) matching the shared folder's URL, using
-  a `performance` (cache-first) strategy. This turned out to need more than
-  config alone: Chrome's `<audio>` element always requests these URLs with a
-  `Range` header, and Dropbox answers with `206 Partial Content` — but the
-  Cache API spec forbids storing a `206` response (`cache.put()` throws),
-  and `ngsw`'s `DataGroup.cacheResponse()` has no special handling for that
-  case, so it silently fails to cache anything cached purely off the
-  `<audio>` element's own requests (playback still works, it just never
-  gets cached). `<audio>` also has no `crossorigin` attribute here, so its
-  requests are `no-cors` → opaque responses, which need
-  `cacheOpaqueResponses: true` to be cacheable at all.
-  **Correction (2026-09-11):** contrary to what's implied above, opaque
-  responses turn out to be cacheable *regardless* of their true underlying
-  status — the Cache API's "can't store a `206`" restriction only inspects
-  a response's *exposed* status, and opaque responses always expose
-  status `0`. So an opaque, Range-bearing `206` response from `<audio>`'s
-  own request genuinely does get cached whenever
-  `cacheOpaqueResponses: true` — confirmed directly by inspecting Cache
-  Storage. This is exactly what caused the cache-poisoning bug described
-  in "Investigated: prefetch-then-blob playback" below — worth knowing
-  before touching `cacheOpaqueResponses` again.
-  Resolution: `src/app/playback/recording-cache.ts`'s `warmRecordingCache()`
-  fires a plain, headerless `fetch(url, { mode: 'no-cors' })` once a track's
-  live stream has already loaded its metadata (called from
-  `mini-player.ts`'s `onLoadedMetadata()`). A headerless request gets a full
-  `200` from Dropbox (confirmed via `curl`), which — combined with
-  `cacheOpaqueResponses: true` — *is* cacheable. `ngsw` matches cache
-  lookups by URL only (not by the incoming request's headers), so a later
-  Range-bearing request from `<audio>` for the same URL still hits this
-  cached full-body entry.
-  **Resolved verification concern:** does serving a full-body response to a
-  Range-bearing request break seeking? No — browsers already handle a
-  server that ignores `Range` and returns `200` by treating the whole
-  response as the resource (the same fallback that would kick in against
-  any plain HTTP server without range support at all); once the full body
-  is available, seeking/scrubbing is decode-buffer-local and unaffected by
-  how the bytes arrived. No byte-range slicing of the cached response is
-  needed.
+**History:** originally hosted on Dropbox (raw share links); migrated to
+Azure Blob Storage on 2026-09-13 after real-world testing showed Dropbox's
+shared-link rate limiting triggers fast (a handful of requests within
+~1 minute tripped `503`s) and isn't cleanly scoped per-file, undermining
+the prefetch-then-blob caching approach below. See ROADMAP.md's Stage 10
+for the migration itself; this section describes the current setup.
 
-## Investigated: prefetch-then-blob playback (2026-09-11, reverted)
+- **Account**: `squawkfiy`, West Europe, Standard performance, LRS
+  redundancy, Hot access tier, Microsoft-managed encryption keys, 7-day
+  soft delete on blobs and containers, `allowSharedKeyAccess: true` (used
+  for admin uploads via `azcopy`/account key — see `CLAUDE.md`), public
+  network access enabled from all networks (app-level auth is deferred to
+  the phased plan below rather than restricted at the network level).
+- **Container**: `squawkify`, anonymous public access at the **Blob**
+  level (not container listing) — chosen specifically so `recordings.json`
+  URLs stay plain HTTPS links needing no backend or SAS-token minting for
+  playback itself, matching the phased-auth plan below.
+- **URL layout unchanged from Dropbox**: same per-practice-dated-folder
+  scheme, just a different host —
+  `https://squawkfiy.blob.core.windows.net/squawkify/<YYYYMMDD>/<filename>`.
+  The migration was a mechanical URL rewrite (92 recordings), not a
+  data-model change.
+- Azure Blob Storage supports HTTP Range requests natively (verified via
+  `curl` and via a real `<audio>` seek), same as Dropbox did.
+- **CORS gotcha (found the hard way):** Azure Storage accounts ship with
+  **zero CORS rules by default**. This doesn't block direct playback
+  (`<audio src>` doesn't need CORS) but silently breaks any
+  `fetch()`-based approach — the prefetch-then-blob code below failed with
+  `TypeError: Failed to fetch` and quietly fell back to plain streaming,
+  with no visible error anywhere. Easy to mistake for "it's just always
+  been streaming-only." Fixed with an explicit CORS rule (`GET, HEAD,
+  OPTIONS`) scoped to the production SWA origin plus local dev ports
+  (`http://localhost:4200`, `http://localhost:4300`) — set via
+  `az storage cors add --services b ...`. Worth checking first if caching
+  ever silently stops working again after any storage account changes.
+  **The production SWA domain is deliberately not written in this repo's
+  docs**, even though it's referenced by name here: this repo is public,
+  and Phase 1 of the access-control plan below relies on that URL being
+  *unlisted* — publishing it in plain markdown would defeat that, and the
+  site itself displays real band-mates' names in practice labels. Keep
+  the actual domain in a private note (or just the Azure Portal /
+  `az staticwebapp list`) rather than in any tracked file.
+- **Caveat carried over from Dropbox, still true:** the audio files
+  themselves are hit directly by the browser via public blob URLs — they
+  are not proxied through the site. Any auth added to the site later only
+  gates *discovery* of the manifest/setlist, not the raw recording files
+  themselves. Anyone with a URL can still play/download it without
+  logging in. Acceptable for a 6-person band, but worth remembering if
+  recordings become sensitive.
+- Not a concern: Azure bandwidth/request costs at this scale (~90
+  recordings, ~400MB total, 6 users) — Hot-tier storage is a fraction of a
+  cent per GB/month, and the fetch-then-cache approach means each file is
+  downloaded from Azure roughly once per device rather than once per play,
+  keeping egress well within Azure's free monthly allowance.
+- **Opportunistic caching, superseded:** the original Dropbox-era approach
+  (a `dropbox-recordings` `ngsw` dataGroup plus
+  `src/app/playback/recording-cache.ts`'s headerless warm-up fetch) no
+  longer exists — replaced by the prefetch-then-blob approach below, which
+  makes the *primary* playback request itself the one that populates the
+  cache, rather than relying on a racing secondary fetch. See Stage 8/10
+  in ROADMAP.md for the history.
 
-**Status: not implemented.** This was fully built, debugged, and then
-deliberately reverted in the same session after real-world testing turned
-up a Dropbox-side issue that wasn't resolved before time ran out. The
-code is back to the "Opportunistic caching" design above (unmodified).
-This section is a handoff note for whoever (human or Claude) picks this
-back up — it captures what was tried, what broke, what was fixed, and
-what's still unverified, so none of that has to be rediscovered.
+## Prefetch-then-blob playback (2026-09-11 investigated/reverted, 2026-09-13 resolved)
+
+**Status: implemented and verified end-to-end.** This section is kept as
+a handoff/postmortem narrative — what was tried, what broke, what was
+fixed — since the debugging history below is still valuable even though
+the outcome it was blocked on has since been resolved. Skip to the
+"Resolution (2026-09-13)" note at the end for the current state.
+
+Originally: **built, debugged, and deliberately reverted** in one session
+after real-world testing turned up a Dropbox-side issue that wasn't
+resolved before time ran out; the code reverted to the "Opportunistic
+caching" design (see the superseded note in the Azure hosting section
+above). What follows is that original session's handoff note, unmodified
+except for this framing.
 
 **Motivation.** The opportunistic-caching approach above only ever caches
 a *secondary*, best-effort warm-up request — the live `<audio>` stream
@@ -208,6 +216,28 @@ heavy-testing burst, longer than expected.
   streaming with weaker (secondary-only) caching. That trade-off was
   accepted going in, but is worth re-confirming as still desired.
 
+**Resolution (2026-09-13):** the Dropbox rate-limiting blocker above was
+resolved by removing Dropbox from the picture entirely — see the "Audio
+hosting — Azure Blob Storage" section's History note and ROADMAP.md's
+Stage 10. This wasn't a Dropbox-side fix; migrating to a storage account
+under our own control just made the whole failure mode inapplicable. The
+`cacheOpaqueResponses: false` fix identified above was re-applied as part
+of that migration. End-to-end verification then turned up a *second*,
+previously-unknown blocker — Azure Blob Storage ships with no CORS rule
+by default, so the prefetch `fetch()` failed with `TypeError: Failed to
+fetch` and silently fell back to plain streaming (see the CORS gotcha in
+the Azure hosting section above). Once a CORS rule was added, the full
+happy path was confirmed for real: `fetch()` succeeds (`type: "cors"`),
+`audio.src` is a genuine `blob:` URL, the service worker's `recordings`
+cache holds a real entry (checked directly via
+`caches.open(name).then(c => c.keys())`), and a replay's cached entry
+keeps its original origin `Date` header rather than getting a fresh one —
+consistent with being served from cache under the 90-day `maxAge`, not
+re-fetched. The trade-off called out above (no more progressive/
+instant-start playback) is accepted and now live. Implemented in commit
+`494871a` on `prefetch-blob-playback` (not yet merged to `main` as of
+this note).
+
 ## Site hosting — Azure Static Web Apps
 
 - Chosen over plain Azure Storage static website hosting specifically
@@ -245,10 +275,11 @@ Rationale:
 
 **Noted trade-off (resolved):** Angular's built-in service worker (`ngsw`)
 is tuned for app-shell/JSON caching, not streaming-media range requests —
-see the opportunistic-caching note above under Audio hosting for how this
-was actually worked around (a headerless warm-up fetch, since `ngsw` can
-never cache the `<audio>` element's own Range-bearing/206 requests
-directly).
+`ngsw` can never cache the `<audio>` element's own Range-bearing/206
+requests directly. Worked around first via a headerless warm-up fetch,
+later replaced by the prefetch-then-blob approach (see Audio hosting
+above), which makes the *primary* playback request itself the one `ngsw`
+caches, sidestepping the Range-request limitation entirely.
 
 **Not a factor in this choice:** the Media Session API (lock-screen
 artwork/controls) and background audio are plain browser APIs, called
@@ -272,8 +303,8 @@ framework decision.
   backgrounded tab. Still needs Media Session API metadata/handlers for
   lock-screen controls, and care to avoid pausing on visibility-change.
 - **Auto-discovery trigger**: no fixed volume threshold — stay
-  hand-maintained and only revisit Dropbox auto-discovery if manifest
-  upkeep actually starts to feel like a burden.
+  hand-maintained and only revisit auto-discovery (from Azure Blob
+  Storage, now) if manifest upkeep actually starts to feel like a burden.
 - **Queue-end behavior**: "play all" (Setlist or Practice) stops after
   the last track; no auto-loop back to the start.
 - **Artwork/metadata**: show simple generated/placeholder art per song

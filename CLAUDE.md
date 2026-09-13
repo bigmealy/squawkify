@@ -5,53 +5,60 @@ Data lives in three git-crypt-encrypted, hand-maintained JSON manifests in
 `src/app/models/{song,practice,recording}.ts`). See `DESIGN.md` for the
 full data-model rationale. This file is the mechanical steps only.
 
-## 1. Find the practice's files in Dropbox
+Audio is hosted on Azure Blob Storage (account `squawkfiy`, container
+`squawkify`) — see `DESIGN.md`'s "Audio hosting — Azure Blob Storage"
+section for the full rationale and the CORS gotcha. Dropbox is no longer
+part of this workflow at all.
 
-**Always use the Dropbox web UI (dropbox.com), never the locally-synced
-Dropbox folder on disk** — it contains unrelated personal subfolders that
-shouldn't be browsed for this task.
+## 1. Find the practice's files locally
 
-Recordings live under `Marty/seagles/Seagles Practice Mixes/<YYYYMMDD>/`.
-Open that dated subfolder and list its files.
+Recordings land in `~/Desktop/Seagles WIP/Seagles Practice Mixes/<YYYYMMDD>/`
+once mixed. List that dated subfolder's files — no Dropbox browsing
+involved.
 
 ## 2. Ask the human for practice metadata
 
-You cannot infer venue/label from Dropbox alone — ask for: practice date
-(usually the folder name), venue, and label (e.g. "Full Band" vs a partial
-lineup like "Vocal Practice (names)"). Also ask for explicit playback
-order if the filenames don't already have a numeric prefix — don't assume
-alphabetical/directory order is the intended set order.
+Ask for: practice date (usually the folder name), venue, and label (e.g.
+"Full Band" vs a partial lineup like "Vocal Practice (names)"). Also ask
+for explicit playback order if the filenames don't already have a numeric
+prefix — don't assume alphabetical/directory order is the intended set
+order.
 
-## 3. Mint ONE Dropbox share link per practice (not per file)
+## 3. Upload the practice's folder to Azure
 
-Per-file share links (24 files -> 24 manual copies) are too much manual
-work, and naively swapping the trailing path on one existing file's link
-does **not** work — Dropbox validates the link's token against the exact
-file it names, and a mismatched swap silently serves a "No Access" page
-(still HTTP 200, so check content, not status).
+Account and container are fixed for the life of the project — there's no
+per-practice link-minting step (unlike the old Dropbox workflow's
+share-link dance, which is gone entirely now).
 
-The working method:
+Generate a short-lived SAS token, then upload with `azcopy`:
 
-1. Open the practice's dated subfolder, click **"Share folder"** (top
-   right) -> the settings gear icon in that panel -> the **"Link for
-   viewing"** tab (the quick "Copy link" on the share panel itself
-   defaults to an edit link) -> "Create link" if none exists yet -> "Copy
-   link".
-2. This gives `https://www.dropbox.com/scl/fo/<subfolder_id>/<subfolder_share_id>?rlkey=<rlkey>&st=...&dl=0`.
-3. Build each file's `recordings.json` `url` as:
-   `https://www.dropbox.com/scl/fo/<subfolder_id>/<subfolder_share_id>?preview=<url-encoded filename>&rlkey=<rlkey>&raw=1`
-   (drop `st=`/`dl=0`, add `preview=<filename>&raw=1`).
+```bash
+RG=seagles
+ACCOUNT=squawkfiy
+CONTAINER=squawkify
+PRACTICE=<YYYYMMDD>   # e.g. 20260910
+EXPIRY=$(date -u -v+2H '+%Y-%m-%dT%H:%MZ' 2>/dev/null || date -u -d '+2 hours' '+%Y-%m-%dT%H:%MZ')
 
-If reading the copied link back out of the clipboard via a browser
-automation tool gets content-filtered (query-string-shaped tokens can trip
-output filters), inject it into a visible page element
-(`el.innerText = await navigator.clipboard.readText()`) and read that
-element's text back instead of reading the clipboard API result directly.
+KEY=$(az storage account keys list --account-name $ACCOUNT --resource-group $RG --query "[0].value" -o tsv)
 
-Before writing all entries, spot-check one built URL with `curl -sIL` and
-confirm a real redirect chain ending at `dl.dropboxusercontent.com`, not a
-silent "No Access" page (still HTTP 200, so check the `location` headers,
-not just the status code).
+SAS=$(az storage container generate-sas \
+  --account-name $ACCOUNT \
+  --account-key "$KEY" \
+  --name $CONTAINER \
+  --permissions rwl \
+  --expiry "$EXPIRY" \
+  --https-only \
+  -o tsv)
+
+azcopy copy \
+  "$HOME/Desktop/Seagles WIP/Seagles Practice Mixes/$PRACTICE/*" \
+  "https://${ACCOUNT}.blob.core.windows.net/${CONTAINER}/${PRACTICE}/?${SAS}" \
+  --recursive \
+  --exclude-pattern ".DS_Store"
+```
+
+Spot-check one uploaded file with `curl -sI` for a plain `200` before
+writing all `recordings.json` entries.
 
 ## 4. Append practices.json
 
@@ -63,6 +70,11 @@ One entry: `{ "id": "<YYYY-MM-DD>", "date": "<YYYY-MM-DD>", "venue": "...", "lab
 - `id`: next sequential `r<N>` (check the current highest numeral first).
 - `songId`: must already exist in `songs.json` (kebab-case slug) — add a
   new song entry first if this practice introduces one.
+- `url`: `https://squawkfiy.blob.core.windows.net/squawkify/<YYYYMMDD>/<url-encoded filename>`
+  — built directly from the fixed account/container, the practice date,
+  and the file's own name (as uploaded in step 3). Percent-encode spaces,
+  apostrophes, and parentheses in the filename (e.g. Python's
+  `urllib.parse.quote`) — no share-link construction needed.
 - `takeLabel`: mirror the file's own naming (e.g. "Take 1", "Take 2",
   "Ending", "Part 1") rather than inventing new vocabulary.
 - `setOrder`: populate 1..N in the confirmed playback order when the human
@@ -81,21 +93,19 @@ One entry: `{ "id": "<YYYY-MM-DD>", "date": "<YYYY-MM-DD>", "venue": "...", "lab
 Only touch this if a genuinely new song appears — add
 `{ "id": "<kebab-slug>", "title": "...", "status": "learning" | "gigging" }`.
 
-## 7. ngsw-config.json
-
-The `dropbox-recordings` dataGroup's `urls` pattern should already be
-`https://www.dropbox.com/scl/fo/**` (broad enough to cover every practice's
-distinct per-folder share ID). If it's ever narrowed back to one specific
-folder ID, broaden it again — a new practice always mints a new folder ID,
-so a narrow pattern silently stops caching every prior practice's audio.
-
-## 8. Verify, don't auto-commit
+## 7. Verify, don't auto-commit
 
 - `ng serve`, confirm the new practice appears in the Practices view
   (most-recent-first) with correct grouping/order, and its takes appear
   under the right songs in the Setlist view.
-- Spot-check 2-3 new URLs with `curl -sIL` for a real redirect chain to
-  `dl.dropboxusercontent.com`.
+- Spot-check 2-3 new URLs with `curl -sI` for a plain `200`. No redirect
+  chain to check (unlike the old Dropbox links) — Azure serves the blob
+  directly.
+- If you touched storage/CORS config itself (not just uploading files),
+  also verify CORS is still scoped correctly:
+  `curl -sI -H "Origin: <production SWA domain>" <url>` should show
+  `access-control-allow-origin` echoing that origin. (Production domain
+  deliberately not written here — see DESIGN.md's note on why.)
 - These manifests are `git-crypt`-encrypted at rest in git (transparent
   locally once unlocked) — edit them as plain JSON, no special handling
   needed for the encryption itself.
