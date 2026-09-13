@@ -29,8 +29,8 @@
   ],
   "dataGroups": [
     {
-      "name": "dropbox-recordings",
-      "urls": ["https://www.dropbox.com/scl/fo/**"],
+      "name": "recordings",
+      "urls": ["https://squawkfiy.blob.core.windows.net/squawkify/**"],
       "cacheConfig": {
         "strategy": "performance",
         "maxSize": 100,
