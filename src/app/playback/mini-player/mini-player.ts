@@ -11,6 +11,7 @@ import {
 import { PlayerState } from '../player-state';
 import { buildMediaMetadata } from '../media-session';
 import { formatTime } from '../format-time';
+import { PlayPauseButton, PlayPauseState } from '../play-pause-button/play-pause-button';
 
 const hasMediaSession = () => 'mediaSession' in navigator;
 
@@ -18,6 +19,7 @@ const hasMediaSession = () => 'mediaSession' in navigator;
   selector: 'app-mini-player',
   styleUrl: './mini-player.scss',
   templateUrl: './mini-player.html',
+  imports: [PlayPauseButton],
 })
 export class MiniPlayer {
   protected readonly player = inject(PlayerState);
@@ -26,9 +28,12 @@ export class MiniPlayer {
 
   protected readonly currentTime = signal(0);
   protected readonly duration = signal(0);
-  protected readonly isLoading = signal(false);
   protected readonly formattedCurrentTime = computed(() => formatTime(this.currentTime()));
   protected readonly formattedDuration = computed(() => formatTime(this.duration()));
+  protected readonly playPauseState = computed<PlayPauseState>(() => {
+    if (this.player.isLoading()) return 'loading';
+    return this.player.isPlaying() ? 'playing' : 'idle';
+  });
 
   // Tracks the blob URL currently (or most recently) assigned to the <audio>
   // element, so it can be revoked once superseded — see the effect below.
@@ -43,7 +48,7 @@ export class MiniPlayer {
 
       this.currentTime.set(0);
       this.duration.set(0);
-      this.isLoading.set(true);
+      this.player.setLoading(true);
 
       const controller = new AbortController();
       // Aborts a still-in-flight prefetch when the user skips to another
@@ -79,7 +84,7 @@ export class MiniPlayer {
           // old one, so the old URL is never revoked while still live.
           audio.src = objectUrl;
           if (previousObjectUrl) URL.revokeObjectURL(previousObjectUrl);
-          this.isLoading.set(false);
+          this.player.setLoading(false);
           // Optional chaining: in tests, HTMLMediaElement.play() may not return a Promise.
           audio.play()?.catch(() => this.player.setPlaying(false));
 
@@ -108,7 +113,13 @@ export class MiniPlayer {
       })();
     });
 
+    this.player.registerAudioController({
+      pause: () => this.audioRef().nativeElement.pause(),
+      resume: () => this.audioRef().nativeElement.play()?.catch(() => this.player.setPlaying(false)),
+    });
+
     this.destroyRef.onDestroy(() => {
+      this.player.registerAudioController(null);
       if (this.currentObjectUrl) URL.revokeObjectURL(this.currentObjectUrl);
     });
 
@@ -160,17 +171,17 @@ export class MiniPlayer {
   }
 
   protected onWaiting(): void {
-    this.isLoading.set(true);
+    this.player.setLoading(true);
   }
 
   // Bound to both 'canplay' and 'playing': either means the buffering
   // indicator no longer needs to be shown.
   protected onPlayable(): void {
-    this.isLoading.set(false);
+    this.player.setLoading(false);
   }
 
   protected onAudioError(): void {
-    this.isLoading.set(false);
+    this.player.setLoading(false);
   }
 
   protected onSeek(event: Event): void {
@@ -180,12 +191,8 @@ export class MiniPlayer {
   }
 
   protected onTogglePlay(): void {
-    const audio = this.audioRef().nativeElement;
-    if (this.player.isPlaying()) {
-      audio.pause();
-    } else {
-      audio.play()?.catch(() => this.player.setPlaying(false));
-    }
+    const current = this.player.current();
+    if (current) this.player.togglePlayback(current);
   }
 
   protected onPrevious(): void {

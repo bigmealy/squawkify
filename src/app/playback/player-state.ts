@@ -1,6 +1,11 @@
 import { computed, Injectable, signal } from '@angular/core';
 import { JoinedRecording } from '../data/rehearsal-grouping';
 
+export interface AudioController {
+  pause(): void;
+  resume(): void;
+}
+
 @Injectable({ providedIn: 'root' })
 export class PlayerState {
   // equal: () => false ensures re-clicking Play on the same recording (same
@@ -8,11 +13,18 @@ export class PlayerState {
   // audio.play() instead of silently no-opping.
   private readonly _current = signal<JoinedRecording | null>(null, { equal: () => false });
   private readonly _isPlaying = signal(false);
+  private readonly _isLoading = signal(false);
   private readonly _queue = signal<JoinedRecording[]>([]);
   private readonly _queueIndex = signal(-1);
 
+  // Set by MiniPlayer (the sole owner of the <audio> element) so other
+  // consumers, like a recording list row, can pause/resume the currently
+  // loaded track without restarting it.
+  private audioController: AudioController | null = null;
+
   readonly current = this._current.asReadonly();
   readonly isPlaying = this._isPlaying.asReadonly();
+  readonly isLoading = this._isLoading.asReadonly();
   readonly hasPrevious = computed(() => this._queueIndex() > 0);
   readonly hasNext = computed(() => {
     const index = this._queueIndex();
@@ -71,5 +83,28 @@ export class PlayerState {
   // isPlaying always mirrors actual playback state.
   setPlaying(isPlaying: boolean): void {
     this._isPlaying.set(isPlaying);
+  }
+
+  setLoading(isLoading: boolean): void {
+    this._isLoading.set(isLoading);
+  }
+
+  registerAudioController(controller: AudioController | null): void {
+    this.audioController = controller;
+  }
+
+  // Pauses/resumes in place when `item` is already the loaded recording;
+  // otherwise starts it fresh via play(), matching the row-click behavior
+  // for any recording that isn't the current one.
+  togglePlayback(item: JoinedRecording): void {
+    if (this._current()?.recording.id === item.recording.id) {
+      if (this._isPlaying()) {
+        this.audioController?.pause();
+      } else {
+        this.audioController?.resume();
+      }
+    } else {
+      this.play(item);
+    }
   }
 }

@@ -18,25 +18,11 @@
           <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
         </svg>
       </button>
-      <button
-        type="button"
-        class="mini-player__play-pause"
-        (click)="onTogglePlay()"
-        [attr.aria-busy]="isLoading()"
-        [attr.aria-label]="player.isPlaying() ? 'Pause' : 'Play'"
-      >
-        @if (isLoading()) {
-          <span class="mini-player__spinner" aria-hidden="true"></span>
-        } @else if (player.isPlaying()) {
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">
-            <path d="M6 5h4v14H6zM14 5h4v14h-4z" />
-          </svg>
-        } @else {
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">
-            <path d="M8 5v14l11-7z" />
-          </svg>
-        }
-      </button>
+      <app-play-pause-button
+        variant="mini"
+        [state]="playPauseState()"
+        (toggle)="onTogglePlay()"
+      />
       <button
         type="button"
         class="mini-player__nav mini-player__nav--next"

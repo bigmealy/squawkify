@@ -179,11 +179,11 @@ describe('MiniPlayer', () => {
     fixture.detectChanges();
 
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('.mini-player__spinner')).toBeTruthy();
+    expect(compiled.querySelector('.play-pause-button__spinner')).toBeTruthy();
 
     resolveFetch(new Response(new Blob(['fake-audio-bytes'])));
     await vi.waitFor(() => {
-      expect(compiled.querySelector('.mini-player__spinner')).toBeFalsy();
+      expect(compiled.querySelector('.play-pause-button__spinner')).toBeFalsy();
     });
   });
 
@@ -208,11 +208,43 @@ describe('MiniPlayer', () => {
 
     audio.dispatchEvent(new Event('waiting'));
     fixture.detectChanges();
-    expect(compiled.querySelector('.mini-player__spinner')).toBeTruthy();
+    expect(compiled.querySelector('.play-pause-button__spinner')).toBeTruthy();
 
     audio.dispatchEvent(new Event('error'));
     fixture.detectChanges();
-    expect(compiled.querySelector('.mini-player__spinner')).toBeFalsy();
+    expect(compiled.querySelector('.play-pause-button__spinner')).toBeFalsy();
+  });
+
+  it('clicking the play/pause button pauses and resumes the underlying audio element', async () => {
+    const fixture = TestBed.createComponent(MiniPlayer);
+    fixture.detectChanges();
+
+    const item: JoinedRecording = {
+      recording: { id: 'r1', songId: 's1', practiceId: 'p1', url: 'https://example.com/r1.mp3' },
+      song: { id: 's1', title: 'Song One' },
+      practice: { id: 'p1', date: '2026-01-01', venue: 'Room 1' },
+    };
+    TestBed.inject(PlayerState).play(item);
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const audio = compiled.querySelector('audio') as HTMLAudioElement;
+    await vi.waitFor(() => expect(audio.src).toContain('blob:mock-url'));
+
+    const pauseSpy = vi.spyOn(audio, 'pause');
+    const playSpy = vi.spyOn(audio, 'play').mockReturnValue(undefined as unknown as Promise<void>);
+    const button = compiled.querySelector<HTMLButtonElement>('.play-pause-button')!;
+
+    button.click();
+    expect(pauseSpy).toHaveBeenCalledOnce();
+
+    // Simulate the real <audio> "pause" event that would follow, since
+    // isPlaying() only ever mirrors actual playback state.
+    audio.dispatchEvent(new Event('pause'));
+    fixture.detectChanges();
+
+    button.click();
+    expect(playSpy).toHaveBeenCalledOnce();
   });
 
   it('previous/next buttons are disabled for single-track playback', () => {

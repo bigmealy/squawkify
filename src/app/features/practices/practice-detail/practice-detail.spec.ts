@@ -1,3 +1,4 @@
+import { vi } from 'vitest';
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
@@ -127,6 +128,69 @@ describe('PracticeDetail', () => {
     // Assert
     const player = TestBed.inject(PlayerState);
     expect(player.current()?.recording.id).toBe('r1');
+  });
+
+  it('clicking the button for the current-but-paused recording resumes rather than restarts it', async () => {
+    // Arrange
+    const practice: Practice = { id: 'p1', date: '2026-01-01', venue: 'Room 1' };
+    const song: Song = { id: 's1', title: 'Song First' };
+    const recording: Recording = {
+      id: 'r1',
+      songId: song.id,
+      practiceId: practice.id,
+      url: 'https://example.com/r1.mp3',
+    };
+
+    // Act
+    const fixture = TestBed.createComponent(PracticeDetail);
+    fixture.componentRef.setInput('practiceId', practice.id);
+    TestBed.tick();
+    flushManifests(httpMock, { songs: [song], practices: [practice], recordings: [recording] });
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const player = TestBed.inject(PlayerState);
+    const button = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('li button')!;
+    button.click(); // starts playback
+    player.setPlaying(false); // simulate the real <audio> "pause" event
+    const playSpy = vi.spyOn(player, 'play');
+
+    button.click(); // toggle again while current-but-paused
+
+    // Assert
+    expect(playSpy).not.toHaveBeenCalled();
+  });
+
+  it('shows a pause icon for the currently playing recording and a play icon once paused', async () => {
+    // Arrange
+    const practice: Practice = { id: 'p1', date: '2026-01-01', venue: 'Room 1' };
+    const song: Song = { id: 's1', title: 'Song First' };
+    const recording: Recording = {
+      id: 'r1',
+      songId: song.id,
+      practiceId: practice.id,
+      url: 'https://example.com/r1.mp3',
+    };
+
+    // Act
+    const fixture = TestBed.createComponent(PracticeDetail);
+    fixture.componentRef.setInput('practiceId', practice.id);
+    TestBed.tick();
+    flushManifests(httpMock, { songs: [song], practices: [practice], recordings: [recording] });
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const player = TestBed.inject(PlayerState);
+    const button = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('li button')!;
+    button.click();
+    fixture.detectChanges();
+
+    // Assert
+    expect(button.getAttribute('aria-label')).toBe('Pause');
+
+    player.setPlaying(false);
+    fixture.detectChanges();
+    expect(button.getAttribute('aria-label')).toBe('Play');
   });
 
   it('shows a "Play all" button and starts the queue at the first recording', async () => {

@@ -31,8 +31,4 @@
     font-size: var(--font-size-sm);
     color: var(--color-text-muted);
   }
-
-  &__play {
-    @include mix.play-button;
-  }
 }

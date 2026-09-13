@@ -2,12 +2,14 @@ import { Component, computed, effect, inject, input } from '@angular/core';
 import { RehearsalData } from '../../../data/rehearsal-data';
 import { JoinedRecording } from '../../../data/rehearsal-grouping';
 import { PlayerState } from '../../../playback/player-state';
+import { PlayPauseButton, PlayPauseState } from '../../../playback/play-pause-button/play-pause-button';
 import { ShellState } from '../../../shell/shell-state';
 
 @Component({
   selector: 'app-practice-detail',
   templateUrl: './practice-detail.html',
   styleUrl: './practice-detail.scss',
+  imports: [PlayPauseButton],
 })
 export class PracticeDetail {
   protected readonly data = inject(RehearsalData);
@@ -32,8 +34,14 @@ export class PracticeDetail {
     return this.player.current()?.recording.id === item.recording.id;
   }
 
-  protected onPlay(item: JoinedRecording): void {
-    this.player.play(item);
+  protected stateFor(item: JoinedRecording): PlayPauseState {
+    if (!this.isActive(item)) return 'idle';
+    if (this.player.isLoading()) return 'loading';
+    return this.player.isPlaying() ? 'playing' : 'idle';
+  }
+
+  protected onToggle(item: JoinedRecording): void {
+    this.player.togglePlayback(item);
   }
 
   protected onPlayAll(items: JoinedRecording[]): void {
