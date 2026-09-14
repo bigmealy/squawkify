@@ -276,6 +276,20 @@ amount of prefetching, caching, or look-ahead buffering into a `Blob`
 changes this, because the blocker isn't data availability, it's that the
 `.play()` call itself happens at the wrong time.
 
+**"Play from a track" (added `b638c88`) is not a separate case.** A user
+reported Play All reliably advancing while locked but starting playback
+from a specific row partway through a set getting stuck instead. Code
+inspection found no difference to explain that: `playFrom()` and
+`playAll()` (`player-state.ts`) write the same queue/current/playing
+signals in the same order, both the "Play all" button and the per-row
+`PlayPauseButton` are plain synchronous `(click)` handlers, and every
+auto-advance — regardless of which flow started the queue — funnels
+through the same single `effect()` in `mini-player.ts`. On-device retesting
+(2026-09-14) confirmed "Play from a track" is itself non-deterministic —
+succeeding sometimes and failing other times while locked — consistent
+with the platform-level timing issue described above rather than a
+distinct app bug.
+
 **Dead ends already tried — don't re-attempt these:**
 - Skipping the prefetch-then-blob path and streaming the remote URL
   directly via the `<audio>` element while hidden. (#2 above.)
