@@ -41,7 +41,7 @@ export class PracticeDetail {
   }
 
   protected onToggle(item: JoinedRecording): void {
-    this.player.togglePlayback(item);
+    this.player.togglePlayback(item, this.group()?.recordings);
   }
 
   protected onPlayAll(items: JoinedRecording[]): void {

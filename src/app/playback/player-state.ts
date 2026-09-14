@@ -48,6 +48,22 @@ export class PlayerState {
     this._isPlaying.set(true);
   }
 
+  // Like playAll(), but positions the queue at `item` instead of index 0 —
+  // used when a specific row's play button is clicked so it continues
+  // through the rest of that practice's set rather than playing in
+  // isolation.
+  playFrom(items: JoinedRecording[], item: JoinedRecording): void {
+    const index = items.findIndex((i) => i.recording.id === item.recording.id);
+    if (index === -1) {
+      this.play(item);
+      return;
+    }
+    this._queue.set(items);
+    this._queueIndex.set(index);
+    this._current.set(item);
+    this._isPlaying.set(true);
+  }
+
   // Advances a "Play all" queue to its next item, or stops (no loop back to
   // the start) once the queue is exhausted. No-op when not queue-driven.
   playNext(): void {
@@ -96,13 +112,15 @@ export class PlayerState {
   // Pauses/resumes in place when `item` is already the loaded recording;
   // otherwise starts it fresh via play(), matching the row-click behavior
   // for any recording that isn't the current one.
-  togglePlayback(item: JoinedRecording): void {
+  togglePlayback(item: JoinedRecording, queue?: JoinedRecording[]): void {
     if (this._current()?.recording.id === item.recording.id) {
       if (this._isPlaying()) {
         this.audioController?.pause();
       } else {
         this.audioController?.resume();
       }
+    } else if (queue) {
+      this.playFrom(queue, item);
     } else {
       this.play(item);
     }

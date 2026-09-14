@@ -182,6 +182,76 @@ describe('PlayerState', () => {
     expect(player.current()).toBe(item);
   });
 
+  it('playFrom() starts the queue positioned at the given item, not index 0', () => {
+    const player = TestBed.inject(PlayerState);
+    const items = [makeItem('r1'), makeItem('r2'), makeItem('r3')];
+
+    player.playFrom(items, items[1]);
+
+    expect(player.current()).toBe(items[1]);
+    expect(player.isPlaying()).toBe(true);
+  });
+
+  it('playFrom() reflects real queue position in hasPrevious()/hasNext()', () => {
+    const player = TestBed.inject(PlayerState);
+    const items = [makeItem('r1'), makeItem('r2'), makeItem('r3')];
+
+    player.playFrom(items, items[1]);
+
+    expect(player.hasPrevious()).toBe(true);
+    expect(player.hasNext()).toBe(true);
+  });
+
+  it('playFrom() lets playNext()/playPrevious() walk the full queue from the starting position', () => {
+    const player = TestBed.inject(PlayerState);
+    const items = [makeItem('r1'), makeItem('r2'), makeItem('r3')];
+    player.playFrom(items, items[1]);
+
+    player.playNext();
+    expect(player.current()).toBe(items[2]);
+    expect(player.hasNext()).toBe(false);
+
+    player.playPrevious();
+    player.playPrevious();
+    expect(player.current()).toBe(items[0]);
+    expect(player.hasPrevious()).toBe(false);
+  });
+
+  it('playFrom() with an item not in the list falls back to solo play()', () => {
+    const player = TestBed.inject(PlayerState);
+    const items = [makeItem('r1'), makeItem('r2')];
+    const outsider = makeItem('r3');
+
+    player.playFrom(items, outsider);
+
+    expect(player.current()).toBe(outsider);
+    expect(player.isPlaying()).toBe(true);
+    expect(player.hasPrevious()).toBe(false);
+    expect(player.hasNext()).toBe(false);
+  });
+
+  it('togglePlayback() on a different recording with a queue starts a positioned queue', () => {
+    const player = TestBed.inject(PlayerState);
+    const items = [makeItem('r1'), makeItem('r2'), makeItem('r3')];
+
+    player.togglePlayback(items[1], items);
+
+    expect(player.current()).toBe(items[1]);
+    expect(player.hasPrevious()).toBe(true);
+    expect(player.hasNext()).toBe(true);
+  });
+
+  it('togglePlayback() with no queue arg still plays solo, unaffected by the new overload', () => {
+    const player = TestBed.inject(PlayerState);
+    const item = makeItem('r1');
+
+    player.togglePlayback(item);
+
+    expect(player.current()).toBe(item);
+    expect(player.hasPrevious()).toBe(false);
+    expect(player.hasNext()).toBe(false);
+  });
+
   it('setLoading() round-trips through isLoading()', () => {
     const player = TestBed.inject(PlayerState);
     expect(player.isLoading()).toBe(false);
