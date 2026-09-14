@@ -238,6 +238,101 @@ instant-start playback) is accepted and now live. Implemented in commit
 `494871a` on `prefetch-blob-playback` (not yet merged to `main` as of
 this note).
 
+## iOS PWA background audio — the track-transition wall (investigated 2026-09-14)
+
+**Read this before attempting auto-advance/"Play all" queue playback that
+survives a locked screen on iOS — a full implementation session was burned
+re-discovering the limits below from scratch.**
+
+**What already works, no caveats:** a single track that is *already
+playing* when the screen locks keeps playing, audibly, through the lock —
+confirmed on iOS Safari (Stage 7 shakedown) and unaffected by anything
+below. This section is specifically about *transitioning to a new track*
+(auto-advance at `ended`, or any other mid-session track change) while the
+page is hidden.
+
+**Confirmed on a real iPhone, installed home-screen PWA, screen locked
+mid-"Play all" queue:**
+
+1. A JS `fetch()` call made after the page is already hidden never
+   resolves until the app returns to the foreground — so a track-change
+   effect that awaits a fetch before assigning `audio.src` just hangs
+   until unlock.
+2. Bypassing that and assigning `audio.src` to the **remote URL** directly
+   (no `fetch()`, letting the native `<audio>` element's own network
+   pipeline handle it) doesn't help either: the playhead visibly advances
+   but there's no sound, then it snaps back to 0 and becomes audible only
+   once the app is foregrounded again.
+3. Bypassing *that* too — serving the new track from an **already-cached
+   local blob** (`caches.match()` → `Blob` → `URL.createObjectURL()`, zero
+   network involved at all) and assigning it to `audio.src` while hidden —
+   produces the exact same silent-playhead-then-restart symptom as #2.
+
+\#3 is the important result: this rules out network throttling as the
+cause. The restriction is that **iOS will not grant real audio output to
+an `HTMLMediaElement` session that is (re)started — new `src` + `.play()`
+— while the page is hidden**, regardless of where the bytes came from. No
+amount of prefetching, caching, or look-ahead buffering into a `Blob`
+changes this, because the blocker isn't data availability, it's that the
+`.play()` call itself happens at the wrong time.
+
+**Dead ends already tried — don't re-attempt these:**
+- Skipping the prefetch-then-blob path and streaming the remote URL
+  directly via the `<audio>` element while hidden. (#2 above.)
+- Cache-Storage-first lookup + blob playback while hidden, paired with a
+  look-ahead effect that prefetches the *next* queued track into Cache
+  Storage as soon as the current one starts (so it's ready before the
+  screen even locks). Still fails — see #3. The look-ahead-prefetch idea
+  itself is fine and cheap, it just doesn't solve the actual problem.
+- The fallback that was briefly implemented then deliberately rolled back
+  (2026-09-14, `main` hard-reset to `e055237`): while hidden, cue the
+  track up (assign `src` from cache when available) *without* calling
+  `.play()`, and resume via a `visibilitychange` listener the instant the
+  app is foregrounded. This works and isn't buggy, but it's not
+  background playback — it's "pause at the boundary, resume instantly on
+  unlock," which the band considers unacceptable for what's meant to be
+  a background-capable player. Don't re-propose this as *the* fix; it's
+  only a reasonable fallback underneath a real one (see below).
+
+**The one approach believed to actually work, not yet implemented:** the
+Web Audio API, not the `<audio>` element, for track transitions. Decode
+each track into an `AudioBuffer` (`AudioContext.decodeAudioData()`) and
+schedule its `AudioBufferSourceNode.start(atTime)` on the `AudioContext`'s
+own clock *while still in the foreground* — e.g. the moment the current
+track starts, once both its own duration and the next track's buffer are
+known. Because the transition is pre-registered on the audio rendering
+graph itself rather than requiring a fresh JS-initiated `.play()` at the
+exact handoff moment, it should survive backgrounding the same way an
+already-playing `<audio>` element does — this is the standard technique
+web-based gapless/DJ-style players use for exactly this iOS constraint.
+
+Real constraint on that approach, not a nitpick: each decoded track is raw
+PCM in memory (roughly 50–100MB+ for a multi-minute recording), so only a
+**bounded look-ahead window** of upcoming tracks can be pre-scheduled this
+way — decoding an entire multi-song practice queue up front risks Safari
+killing the tab under memory pressure. So even this is "background
+playback survives N pre-buffered tracks ahead," not an unconditional
+guarantee for an arbitrarily long locked-phone session; beyond the
+pre-scheduled window it still needs to fall back to something like the
+cue-and-resume-on-`visibilitychange` pattern above.
+
+This was scoped as an implementation plan (2026-09-14,
+`~/.claude/plans/shiny-drifting-summit.md` on the machine that wrote this
+note, if it's still around) but **not implemented** — the user chose to
+roll back to the known-good pre-auto-advance codebase rather than take on
+that rewrite immediately, since it replaces most of `MiniPlayer`'s
+`<audio>`-element-driven plumbing (play/pause/seek/scrubber/loading state,
+not just the track-change logic) and needs its own careful real-device
+verification loop. Revisit only when background multi-track playback is
+worth that investment.
+
+**If Web Audio's bounded look-ahead window ever isn't good enough:**
+wrapping the app in a thin native shell (e.g. Capacitor) so playback is
+driven by a real native audio queue (`AVQueuePlayer`) is the only way to
+get Spotify/Apple-Music-grade *indefinite* background queue playback. That
+is a materially different project shape than "installable PWA" and should
+be a deliberate decision, not a fallback reached for casually.
+
 ## Site hosting — Azure Static Web Apps
 
 - Chosen over plain Azure Storage static website hosting specifically
@@ -301,7 +396,10 @@ framework decision.
   manifest + service worker) so band-mates can add it to their home
   screen — more reliable background audio on iOS than a plain
   backgrounded tab. Still needs Media Session API metadata/handlers for
-  lock-screen controls, and care to avoid pausing on visibility-change.
+  lock-screen controls. This holds for a single already-playing track;
+  it does **not** extend to auto-advancing to a *new* track while the
+  screen is locked — see "iOS PWA background audio — the track-transition
+  wall" above for what was tried and what would actually be needed.
 - **Auto-discovery trigger**: no fixed volume threshold — stay
   hand-maintained and only revisit auto-discovery (from Azure Blob
   Storage, now) if manifest upkeep actually starts to feel like a burden.

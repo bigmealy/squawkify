@@ -248,7 +248,12 @@ place (`src/app/shell/`, `src/styles/_tokens.scss`, restyled
 - Verify background audio and install flow. ✅ on iOS Safari — locking
   the screen/switching apps keeps audio playing with working lock-screen
   transport controls, and "Add to Home Screen" installs and launches
-  standalone with the correct icon/name. Android still unverified.
+  standalone with the correct icon/name. Android still unverified. **This
+  covers a single already-playing track only** — auto-advancing to a
+  *new* track while the screen is locked does not work on iOS and needs
+  real architectural work to fix; see DESIGN.md's "iOS PWA background
+  audio — the track-transition wall" (2026-09-14) before attempting it
+  again.
 - Fix whatever breaks here before telling the band it's ready. Nothing
   broke on iOS.
 
@@ -371,3 +376,10 @@ Stage 7 fully done.
   it just silently resets to paused/0:00. The Stage 8 loading spinner clears on
   `error` so it doesn't hang forever, but there's still no message or
   retry affordance.
+- **Auto-advance / "Play all" queue surviving a locked screen on iOS**:
+  investigated and reverted 2026-09-14 (`main` hard-reset to `e055237`).
+  A single already-playing track survives a lock fine; advancing to a
+  *new* track while locked does not, on iOS, no matter how that track's
+  audio is sourced — see DESIGN.md's "iOS PWA background audio — the
+  track-transition wall" for what was tried and the Web Audio API
+  approach believed to actually fix it (real rewrite, not yet started).
