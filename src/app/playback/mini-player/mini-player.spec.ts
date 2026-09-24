@@ -101,6 +101,7 @@ describe('MiniPlayer', () => {
     });
     const [, options] = fetchSpy.mock.calls[0];
     expect((options as RequestInit).mode).not.toBe('no-cors');
+    expect((options as RequestInit).cache).toBe('no-store');
 
     const audio = fixture.nativeElement.querySelector('audio')!;
     await vi.waitFor(() => expect(audio.src).toContain('blob:mock-url'));

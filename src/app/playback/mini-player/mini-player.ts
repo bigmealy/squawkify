@@ -64,7 +64,12 @@ export class MiniPlayer {
           // response so `.blob()` works. Dropbox's dl.dropboxusercontent.com
           // sends `access-control-allow-origin: *` on both plain and
           // Range-bearing GETs (confirmed via curl), so this succeeds.
-          const response = await fetch(url, { signal: controller.signal });
+          // no-store: skip the HTTP cache entirely, on both read and write.
+          // A prefetch aborted mid-download (e.g. skipping tracks quickly)
+          // can otherwise leave a corrupted, incomplete cache entry that a
+          // later request for the same URL replays forever instead of
+          // re-fetching — seen in practice as a track stuck loading.
+          const response = await fetch(url, { signal: controller.signal, cache: 'no-store' });
           if (!response.ok) throw new Error(`Prefetch failed: ${response.status}`);
           const blob = await response.blob();
 
