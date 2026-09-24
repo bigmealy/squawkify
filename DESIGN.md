@@ -87,9 +87,11 @@ for the migration itself; this section describes the current setup.
   recordings become sensitive.
 - Not a concern: Azure bandwidth/request costs at this scale (~90
   recordings, ~400MB total, 6 users) — Hot-tier storage is a fraction of a
-  cent per GB/month, and the fetch-then-cache approach means each file is
-  downloaded from Azure roughly once per device rather than once per play,
-  keeping egress well within Azure's free monthly allowance.
+  cent per GB/month. (Previously each file was downloaded roughly once per
+  device rather than once per play, via the `ngsw` data-group cache below;
+  that cache was removed 2026-09-24 — see the "Audio caching removed"
+  note — so every play now re-downloads. Still not a concern at this
+  scale.)
 - **Opportunistic caching, superseded:** the original Dropbox-era approach
   (a `dropbox-recordings` `ngsw` dataGroup plus
   `src/app/playback/recording-cache.ts`'s headerless warm-up fetch) no
@@ -238,6 +240,38 @@ instant-start playback) is accepted and now live. Implemented in commit
 `494871a` on `prefetch-blob-playback` (not yet merged to `main` as of
 this note).
 
+**Real bug found (2026-09-24): abort-triggered cache poisoning, a new
+failure mode distinct from the opaque-response one above.** The `recordings`
+dataGroup's `cacheOpaqueResponses: false` fix (above) prevents *opaque*
+responses from poisoning the cache, but doesn't cover this case: the
+prefetch's own `AbortController` (used to cancel a stale fetch when the
+user skips tracks quickly) aborted an in-flight, genuinely-`cors` fetch
+for a brand-new recording mid-download. That left `ngsw`'s `performance`-
+strategy cache holding a corrupted/incomplete entry for that exact URL —
+confirmed via DevTools Network panel showing the resource served
+`(disk cache)` with the request stuck `Pending` forever. Because
+`performance` strategy serves from cache without ever re-checking the
+network, every subsequent play of that track hung indefinitely, with no
+console error. Passing `{ cache: 'no-store' }` to the prefetch `fetch()`
+call (`mini-player.ts`) stops the *plain browser HTTP cache* from being
+part of this, but does not by itself stop `ngsw`'s own explicit
+Cache-Storage-based data-group caching — that's a separate interception
+layer in front of the browser cache, unaffected by a request's `cache`
+option.
+
+**Resolution (2026-09-24): audio caching removed entirely.** Rather than
+switch the dataGroup to a `freshness` (network-first-with-offline-fallback)
+strategy, the `recordings` dataGroup was deleted from `ngsw-config.json`
+outright — a deliberate choice to always re-download fresh over keeping
+offline playback, made after this bug surfaced during otherwise-routine
+practice-upload testing. Offline listening (playing previously-cached
+takes with no signal at the venue) no longer works; every play now hits
+the network. The `app`/`assets` asset groups (app shell, JSON manifests,
+fonts/images) are unaffected — only the audio-blob data group was removed.
+The `{ cache: 'no-store' }` fetch option was kept regardless, since it's a
+correct hardening against the plain browser HTTP cache independent of
+`ngsw`.
+
 ## iOS PWA background audio — the track-transition wall (investigated 2026-09-14)
 
 **Read this before attempting auto-advance/"Play all" queue playback that
@@ -382,13 +416,16 @@ Rationale:
 - Azure Static Web Apps has a built-in Angular build preset, so
   deployment is a known path.
 
-**Noted trade-off (resolved):** Angular's built-in service worker (`ngsw`)
-is tuned for app-shell/JSON caching, not streaming-media range requests —
-`ngsw` can never cache the `<audio>` element's own Range-bearing/206
-requests directly. Worked around first via a headerless warm-up fetch,
-later replaced by the prefetch-then-blob approach (see Audio hosting
-above), which makes the *primary* playback request itself the one `ngsw`
-caches, sidestepping the Range-request limitation entirely.
+**Noted trade-off (resolved, then superseded):** Angular's built-in
+service worker (`ngsw`) is tuned for app-shell/JSON caching, not
+streaming-media range requests — `ngsw` can never cache the `<audio>`
+element's own Range-bearing/206 requests directly. Worked around first via
+a headerless warm-up fetch, later replaced by the prefetch-then-blob
+approach (see Audio hosting above), which made the *primary* playback
+request itself the one `ngsw` cached, sidestepping the Range-request
+limitation entirely. As of 2026-09-24 this is moot: the `recordings`
+dataGroup was removed outright (see "Audio caching removed" note above),
+so `ngsw` no longer caches audio at all, by design.
 
 **Not a factor in this choice:** the Media Session API (lock-screen
 artwork/controls) and background audio are plain browser APIs, called
