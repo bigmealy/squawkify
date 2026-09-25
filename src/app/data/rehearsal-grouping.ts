@@ -1,4 +1,5 @@
 import { Practice } from '../models/practice';
+import { PracticeMinutes } from '../models/practice-minutes';
 import { Recording } from '../models/recording';
 import { Song } from '../models/song';
 
@@ -16,6 +17,7 @@ export interface SongGroup {
 export interface PracticeGroup {
   practice: Practice;
   recordings: JoinedRecording[];
+  minutes: PracticeMinutes | undefined;
 }
 
 export function joinRecordings(
@@ -49,10 +51,15 @@ export function groupBySong(songs: Song[], joined: JoinedRecording[]): SongGroup
   }));
 }
 
-export function groupByPractice(practices: Practice[], joined: JoinedRecording[]): PracticeGroup[] {
+export function groupByPractice(
+  practices: Practice[],
+  joined: JoinedRecording[],
+  minutes: PracticeMinutes[] = [],
+): PracticeGroup[] {
   return practices.map((practice) => ({
     practice,
     recordings: joined.filter((item) => item.practice.id === practice.id),
+    minutes: minutes.find((m) => m.practiceId === practice.id),
   }));
 }
 

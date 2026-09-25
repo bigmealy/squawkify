@@ -1,4 +1,5 @@
 import { Component, computed, effect, inject, input } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { RehearsalData } from '../../../data/rehearsal-data';
 import { JoinedRecording } from '../../../data/rehearsal-grouping';
 import { PlayerState } from '../../../playback/player-state';
@@ -9,7 +10,7 @@ import { ShellState } from '../../../shell/shell-state';
   selector: 'app-practice-detail',
   templateUrl: './practice-detail.html',
   styleUrl: './practice-detail.scss',
-  imports: [PlayPauseButton],
+  imports: [PlayPauseButton, RouterLink],
 })
 export class PracticeDetail {
   protected readonly data = inject(RehearsalData);

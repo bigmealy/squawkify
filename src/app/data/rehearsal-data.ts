@@ -2,6 +2,7 @@ import { Injectable, computed } from '@angular/core';
 import { httpResource } from '@angular/common/http';
 import { Song } from '../models/song';
 import { Practice } from '../models/practice';
+import { PracticeMinutes } from '../models/practice-minutes';
 import { Recording } from '../models/recording';
 import {
   groupByPractice,
@@ -25,23 +26,29 @@ export class RehearsalData {
   private readonly recordingsResource = httpResource<Recording[]>(() => 'data/recordings.json', {
     defaultValue: [],
   });
+  private readonly minutesResource = httpResource<PracticeMinutes[]>(() => 'data/minutes.json', {
+    defaultValue: [],
+  });
 
   readonly songs = this.songsResource.value;
   readonly practices = this.practicesResource.value;
   readonly recordings = this.recordingsResource.value;
+  readonly minutes = this.minutesResource.value;
 
   readonly isLoading = computed(
     () =>
       this.songsResource.isLoading() ||
       this.practicesResource.isLoading() ||
-      this.recordingsResource.isLoading(),
+      this.recordingsResource.isLoading() ||
+      this.minutesResource.isLoading(),
   );
 
   readonly error = computed(
     () =>
       this.songsResource.error() ??
       this.practicesResource.error() ??
-      this.recordingsResource.error(),
+      this.recordingsResource.error() ??
+      this.minutesResource.error(),
   );
 
   private readonly joinedRecordings = computed(() =>
@@ -56,11 +63,13 @@ export class RehearsalData {
   );
 
   readonly practicesWithRecordings = computed<PracticeGroup[]>(() =>
-    groupByPractice(sortPracticesMostRecentFirst(this.practices()), this.joinedRecordings()).map(
-      (group) => ({
-        ...group,
-        recordings: sortRecordingsBySetOrder(group.recordings),
-      }),
-    ),
+    groupByPractice(
+      sortPracticesMostRecentFirst(this.practices()),
+      this.joinedRecordings(),
+      this.minutes(),
+    ).map((group) => ({
+      ...group,
+      recordings: sortRecordingsBySetOrder(group.recordings),
+    })),
   );
 }

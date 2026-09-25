@@ -1,5 +1,6 @@
 import { HttpTestingController, TestRequest } from '@angular/common/http/testing';
 import { Practice } from '../models/practice';
+import { PracticeMinutes } from '../models/practice-minutes';
 import { Recording } from '../models/recording';
 import { Song } from '../models/song';
 
@@ -7,6 +8,7 @@ export interface ManifestFixtures {
   songs?: Song[];
   practices?: Practice[];
   recordings?: Recording[];
+  minutes?: PracticeMinutes[];
 }
 
 // HttpTestingController.expectOne both asserts a matching request exists and
@@ -24,4 +26,5 @@ export function flushManifests(
   respond('data/songs.json', fixtures.songs ?? []);
   respond('data/practices.json', fixtures.practices ?? []);
   respond('data/recordings.json', fixtures.recordings ?? []);
+  respond('data/minutes.json', fixtures.minutes ?? []);
 }

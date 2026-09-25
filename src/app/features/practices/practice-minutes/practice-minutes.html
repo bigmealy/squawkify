@@ -1,0 +1,18 @@
+@if (data.isLoading()) {
+  <p>Loading…</p>
+} @else if (data.error()) {
+  <p>Failed to load the practice.</p>
+} @else if (group(); as g) {
+  <h1>{{ g.practice.date }} — {{ g.practice.venue }}</h1>
+  @if (!g.minutes) {
+    <p>No minutes recorded for this practice.</p>
+  } @else if (markdownResource.isLoading()) {
+    <p>Loading minutes…</p>
+  } @else if (markdownResource.error()) {
+    <p>Failed to load the minutes document.</p>
+  } @else {
+    <div class="practice-minutes__body" [innerHTML]="renderedHtml()"></div>
+  }
+} @else {
+  <p>Practice not found.</p>
+}

@@ -10,6 +10,7 @@ import { RehearsalData } from './rehearsal-data';
 import { Song } from '../models/song';
 import { Practice } from '../models/practice';
 import { Recording } from '../models/recording';
+import { PracticeMinutes } from '../models/practice-minutes';
 
 // HttpTestingController.expectOne both asserts a matching request exists and
 // hands it back — there's no way to fetch a pending request without that
@@ -56,6 +57,7 @@ describe('RehearsalData', () => {
     respondTo(httpMock, 'data/songs.json', songs);
     respondTo(httpMock, 'data/practices.json', practices);
     respondTo(httpMock, 'data/recordings.json', recordings);
+    respondTo(httpMock, 'data/minutes.json', []);
     await TestBed.inject(ApplicationRef).whenStable();
 
     // Assert
@@ -86,6 +88,10 @@ describe('RehearsalData', () => {
       practiceId: newerPractice.id,
       url: 'https://example.com/r2.mp3',
     };
+    const newerMinutes: PracticeMinutes = {
+      practiceId: newerPractice.id,
+      url: 'https://example.com/minutes.md',
+    };
     const service = TestBed.inject(RehearsalData);
 
     // Act
@@ -93,6 +99,7 @@ describe('RehearsalData', () => {
     respondTo(httpMock, 'data/songs.json', [songWithTakes, songWithNone]);
     respondTo(httpMock, 'data/practices.json', [olderPractice, newerPractice]);
     respondTo(httpMock, 'data/recordings.json', [olderRecording, newerRecording]);
+    respondTo(httpMock, 'data/minutes.json', [newerMinutes]);
     await TestBed.inject(ApplicationRef).whenStable();
 
     // Assert
@@ -105,6 +112,8 @@ describe('RehearsalData', () => {
     expect(practiceGroups.map((g) => g.practice.id)).toEqual([newerPractice.id, olderPractice.id]);
     expect(practiceGroups[0].recordings.map((r) => r.recording.id)).toEqual(['r2']);
     expect(practiceGroups[1].recordings.map((r) => r.recording.id)).toEqual(['r1']);
+    expect(practiceGroups[0].minutes).toEqual(newerMinutes);
+    expect(practiceGroups[1].minutes).toBeUndefined();
   });
 
   it('reports isLoading as true while the manifest requests are outstanding', () => {
@@ -128,6 +137,7 @@ describe('RehearsalData', () => {
     respondTo(httpMock, 'data/songs.json', []);
     respondTo(httpMock, 'data/practices.json', []);
     respondTo(httpMock, 'data/recordings.json', []);
+    respondTo(httpMock, 'data/minutes.json', []);
   });
 
   it('surfaces an error signal when a manifest request fails', async () => {
@@ -139,6 +149,7 @@ describe('RehearsalData', () => {
     respondTo(httpMock, 'data/songs.json', 'not found', { status: 404, statusText: 'Not Found' });
     respondTo(httpMock, 'data/practices.json', []);
     respondTo(httpMock, 'data/recordings.json', []);
+    respondTo(httpMock, 'data/minutes.json', []);
     await TestBed.inject(ApplicationRef).whenStable();
 
     // Assert

@@ -7,6 +7,7 @@ import { PracticeDetail } from './practice-detail';
 import { flushManifests } from '../../../testing/flush-manifests';
 import { PlayerState } from '../../../playback/player-state';
 import { Practice } from '../../../models/practice';
+import { PracticeMinutes } from '../../../models/practice-minutes';
 import { Song } from '../../../models/song';
 import { Recording } from '../../../models/recording';
 
@@ -270,6 +271,46 @@ describe('PracticeDetail', () => {
     // Assert
     const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
     expect(text).toContain('No recordings yet');
+  });
+
+  it('shows a "View Minutes" button only when the practice has a minutes entry', async () => {
+    // Arrange
+    const practice: Practice = { id: 'p1', date: '2026-01-01', venue: 'Room 1' };
+    const minutes: PracticeMinutes = {
+      practiceId: practice.id,
+      url: 'https://example.com/minutes.md',
+    };
+
+    // Act
+    const fixture = TestBed.createComponent(PracticeDetail);
+    fixture.componentRef.setInput('practiceId', practice.id);
+    TestBed.tick();
+    flushManifests(httpMock, { practices: [practice], minutes: [minutes] });
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    // Assert
+    const compiled = fixture.nativeElement as HTMLElement;
+    const link = compiled.querySelector('a');
+    expect(link?.textContent?.trim()).toBe('View Minutes');
+    expect(link?.querySelector('svg')).toBeTruthy();
+  });
+
+  it('shows no minutes link when the practice has no minutes entry', async () => {
+    // Arrange
+    const practice: Practice = { id: 'p1', date: '2026-01-01', venue: 'Room 1' };
+
+    // Act
+    const fixture = TestBed.createComponent(PracticeDetail);
+    fixture.componentRef.setInput('practiceId', practice.id);
+    TestBed.tick();
+    flushManifests(httpMock, { practices: [practice] });
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    // Assert
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('a')).toBeNull();
   });
 
   it('shows a not-found state for an unknown practiceId', async () => {
