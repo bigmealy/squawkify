@@ -5,6 +5,7 @@ import { provideRouter } from '@angular/router';
 import { PracticesList } from './practices-list';
 import { flushManifests } from '../../../testing/flush-manifests';
 import { Practice } from '../../../models/practice';
+import { PracticeMinutes } from '../../../models/practice-minutes';
 import { Song } from '../../../models/song';
 import { Recording } from '../../../models/recording';
 
@@ -52,5 +53,28 @@ describe('PracticesList', () => {
     expect(newerIndex).toBeGreaterThanOrEqual(0);
     expect(olderIndex).toBeGreaterThan(newerIndex);
     expect(text).toContain('no recordings yet');
+  });
+
+  it('shows a minutes icon only for practices that have a minutes entry', async () => {
+    // Arrange
+    const withMinutes: Practice = { id: 'p1', date: '2026-01-01', venue: 'Room 1' };
+    const withoutMinutes: Practice = { id: 'p2', date: '2026-02-01', venue: 'Room 2' };
+    const minutes: PracticeMinutes = {
+      practiceId: withMinutes.id,
+      url: 'https://example.com/minutes.md',
+    };
+
+    // Act
+    const fixture = TestBed.createComponent(PracticesList);
+    TestBed.tick();
+    flushManifests(httpMock, { practices: [withMinutes, withoutMinutes], minutes: [minutes] });
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    // Assert — most-recent-first ordering, so the newer practice (no minutes)
+    // is items[0] and the older one (with minutes) is items[1].
+    const items = (fixture.nativeElement as HTMLElement).querySelectorAll('.practice-list__item');
+    expect(items[0].querySelector('.practice-list__minutes-icon')).toBeFalsy();
+    expect(items[1].querySelector('.practice-list__minutes-icon')).toBeTruthy();
   });
 });

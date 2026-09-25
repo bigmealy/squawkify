@@ -27,6 +27,15 @@
               <span class="practice-list__count">no recordings yet</span>
             }
           </span>
+          @if (group.minutes) {
+            <span class="practice-list__minutes-icon" role="img" aria-label="Minutes available">
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="#fff" fill-rule="evenodd" aria-hidden="true">
+                <path
+                  d="M6 2L14 2L20 8L20 22L6 22Z M8 12L16 12L16 14L8 14Z M8 16L14 16L14 18L8 18Z"
+                />
+              </svg>
+            </span>
+          }
         </a>
       </li>
     }
