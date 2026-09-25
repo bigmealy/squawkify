@@ -88,12 +88,30 @@ One entry: `{ "id": "<YYYY-MM-DD>", "date": "<YYYY-MM-DD>", "venue": "...", "lab
 - Keep each practice's recordings contiguous in the array (cosmetic
   convention, not enforced by code).
 
-## 6. songs.json
+## 6. Minutes (optional)
+
+If a transcribed/processed minutes markdown document exists for this
+practice, drop `minutes.md` into the same local dated source folder
+*before* running the `azcopy` upload in step 3, so it uploads in the same
+pass as the audio — it lands in the same `<YYYYMMDD>/` blob prefix already
+covered by the existing CORS rule and `azcopy` command, so no separate
+storage/CORS step is needed.
+
+Then append one entry to `public/data/minutes.json`:
+`{ "practiceId": "<YYYY-MM-DD>", "url": "https://squawkfiy.blob.core.windows.net/squawkify/<YYYYMMDD>/minutes.md" }`
+— `practiceId` equals the practice's `id`/`date` verbatim (same convention
+as `practices.json`), `url` built the same mechanical way as
+`recordings.json` URLs.
+
+Skip this step entirely (don't write a placeholder entry) when no minutes
+doc exists yet for this practice.
+
+## 7. songs.json
 
 Only touch this if a genuinely new song appears — add
 `{ "id": "<kebab-slug>", "title": "...", "status": "learning" | "gigging" }`.
 
-## 7. Verify, don't auto-commit
+## 8. Verify, don't auto-commit
 
 - `ng serve`, confirm the new practice appears in the Practices view
   (most-recent-first) with correct grouping/order, and its takes appear
@@ -101,6 +119,10 @@ Only touch this if a genuinely new song appears — add
 - Spot-check 2-3 new URLs with `curl -sI` for a plain `200`. No redirect
   chain to check (unlike the old Dropbox links) — Azure serves the blob
   directly.
+- If a minutes entry was added, also `curl -sI` the `minutes.md` blob URL
+  for a plain `200`, and in `ng serve` confirm the "View practice minutes"
+  link appears on that practice's detail page and the rendered page shows
+  real content (not a loading/error state).
 - If you touched storage/CORS config itself (not just uploading files),
   also verify CORS is still scoped correctly:
   `curl -sI -H "Origin: <production SWA domain>" <url>` should show

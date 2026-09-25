@@ -1,4 +1,5 @@
 import { Practice } from '../models/practice';
+import { PracticeMinutes } from '../models/practice-minutes';
 import { Recording } from '../models/recording';
 import { Song } from '../models/song';
 import {
@@ -95,9 +96,27 @@ describe('rehearsal-grouping', () => {
       const groups = groupByPractice([practiceOld, practiceNew], joined);
 
       expect(groups).toEqual([
-        { practice: practiceOld, recordings: joined },
-        { practice: practiceNew, recordings: [] },
+        { practice: practiceOld, recordings: joined, minutes: undefined },
+        { practice: practiceNew, recordings: [], minutes: undefined },
       ]);
+    });
+
+    it('attaches the matching minutes entry when one exists for a practice', () => {
+      const minutes: PracticeMinutes = {
+        practiceId: practiceOld.id,
+        url: 'https://example.com/minutes.md',
+      };
+
+      const groups = groupByPractice([practiceOld, practiceNew], [], [minutes]);
+
+      expect(groups[0].minutes).toEqual(minutes);
+      expect(groups[1].minutes).toBeUndefined();
+    });
+
+    it('leaves minutes undefined for every practice when no minutes are given', () => {
+      const groups = groupByPractice([practiceOld], []);
+
+      expect(groups[0].minutes).toBeUndefined();
     });
   });
 

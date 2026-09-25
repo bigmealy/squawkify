@@ -26,5 +26,13 @@ export const routes: Routes = [
       import('./features/practices/practice-detail/practice-detail').then((m) => m.PracticeDetail),
     data: { headerMode: 'detail', backFallback: '/practices' },
   },
+  {
+    path: 'practices/:practiceId/minutes',
+    loadComponent: () =>
+      import('./features/practices/practice-minutes/practice-minutes').then(
+        (m) => m.PracticeMinutesView,
+      ),
+    data: { headerMode: 'detail', backFallback: '/practices' },
+  },
   { path: '**', redirectTo: 'practices' },
 ];

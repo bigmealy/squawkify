@@ -13,7 +13,6 @@
     @include mix.touch-target;
     text-decoration: none;
     color: var(--color-text);
-    justify-content: flex-start;
 
     &--active {
       @include mix.list-card-active;
@@ -34,6 +33,13 @@
   &__label {
     color: var(--color-text-muted);
     font-weight: 400;
+  }
+
+  &__minutes-icon {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+    margin-left: var(--space-3);
   }
 
   &__count {
