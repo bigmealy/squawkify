@@ -10,6 +10,7 @@ import {
 } from '@angular/core';
 import { PlayerState } from '../player-state';
 import { buildMediaMetadata } from '../media-session';
+import { buildDownloadFilename } from '../download-filename';
 import { formatTime } from '../format-time';
 import { PlayPauseButton, PlayPauseState } from '../play-pause-button/play-pause-button';
 
@@ -38,6 +39,8 @@ export class MiniPlayer {
   // Tracks the blob URL currently (or most recently) assigned to the <audio>
   // element, so it can be revoked once superseded — see the effect below.
   private currentObjectUrl: string | null = null;
+
+  protected readonly isSharing = signal(false);
 
   constructor() {
     effect((onCleanup) => {
@@ -206,5 +209,54 @@ export class MiniPlayer {
 
   protected onNext(): void {
     this.player.playNext();
+  }
+
+  protected async onShare(): Promise<void> {
+    const current = this.player.current();
+    if (!current || this.isSharing()) return;
+
+    this.isSharing.set(true);
+    try {
+      let blob: Blob;
+      try {
+        // Reading back the already-prefetched blob URL is a local, in-memory
+        // operation (no network) — only hit the network directly when the
+        // prefetch hasn't produced one yet (e.g. it failed and fell back to
+        // direct streaming, or share was clicked before it resolved).
+        const source = this.currentObjectUrl ?? current.recording.url;
+        blob = await fetch(source).then((r) => r.blob());
+      } catch {
+        return;
+      }
+
+      const filename = buildDownloadFilename(current);
+      const file = new File([blob], filename, { type: blob.type || 'audio/mpeg' });
+
+      if (navigator.canShare?.({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file] });
+        } catch (err) {
+          // User cancelling the share sheet throws AbortError — swallow it,
+          // and any other share failure, rather than falling back to a
+          // download the user didn't ask for.
+          if (err instanceof DOMException && err.name === 'AbortError') return;
+        }
+      } else {
+        this.triggerDownload(file);
+      }
+    } finally {
+      this.isSharing.set(false);
+    }
+  }
+
+  private triggerDownload(file: File): void {
+    const url = URL.createObjectURL(file);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = file.name;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
   }
 }

@@ -29,6 +29,8 @@ describe('MiniPlayer', () => {
 
   afterEach(() => {
     Reflect.deleteProperty(navigator, 'serviceWorker');
+    Reflect.deleteProperty(navigator, 'share');
+    Reflect.deleteProperty(navigator, 'canShare');
     Reflect.deleteProperty(URL, 'createObjectURL');
     Reflect.deleteProperty(URL, 'revokeObjectURL');
     vi.restoreAllMocks();
@@ -316,5 +318,39 @@ describe('MiniPlayer', () => {
     fixture.detectChanges();
     expect(compiled.textContent).toContain('Song One');
     expect(compiled.querySelector<HTMLButtonElement>('.mini-player__nav--prev')?.disabled).toBe(true);
+  });
+
+  it('clicking the share button shares the recording as a file via the Web Share API', async () => {
+    const shareSpy = vi.fn().mockResolvedValue(undefined);
+    (navigator as unknown as { canShare: unknown }).canShare = vi.fn().mockReturnValue(true);
+    (navigator as unknown as { share: unknown }).share = shareSpy;
+
+    const fixture = TestBed.createComponent(MiniPlayer);
+    fixture.detectChanges();
+
+    const item: JoinedRecording = {
+      recording: { id: 'r1', songId: 's1', practiceId: 'p1', url: 'https://example.com/r1.mp3' },
+      song: { id: 's1', title: 'Song One' },
+      practice: { id: 'p1', date: '2026-01-01', venue: 'Room 1' },
+    };
+    TestBed.inject(PlayerState).play(item);
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const audio = compiled.querySelector('audio') as HTMLAudioElement;
+    await vi.waitFor(() => expect(audio.src).toContain('blob:mock-url'));
+
+    // The prefetch above already consumed the shared mocked Response's body,
+    // so give the share handler's own fetch() a fresh, unread one.
+    vi.spyOn(window, 'fetch').mockResolvedValueOnce(
+      new Response(new Blob(['fake-audio-bytes'], { type: 'audio/mpeg' })),
+    );
+    compiled.querySelector<HTMLButtonElement>('.mini-player__share')!.click();
+
+    await vi.waitFor(() => expect(shareSpy).toHaveBeenCalledOnce());
+    const { files } = shareSpy.mock.calls[0][0];
+    expect(files).toHaveLength(1);
+    expect(files[0]).toBeInstanceOf(File);
+    expect(files[0].name).toBe('2026-01-01 Song One.mp3');
   });
 });
