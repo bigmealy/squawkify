@@ -23,6 +23,12 @@
     min-width: 0;
   }
 
+  &__actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
   &__practice {
     font-weight: 600;
   }

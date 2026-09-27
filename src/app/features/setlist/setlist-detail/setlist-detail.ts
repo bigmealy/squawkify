@@ -3,13 +3,14 @@ import { RehearsalData } from '../../../data/rehearsal-data';
 import { JoinedRecording } from '../../../data/rehearsal-grouping';
 import { PlayerState } from '../../../playback/player-state';
 import { PlayPauseButton, PlayPauseState } from '../../../playback/play-pause-button/play-pause-button';
+import { ShareLinkButton } from '../../../playback/share-link-button/share-link-button';
 import { ShellState } from '../../../shell/shell-state';
 
 @Component({
   selector: 'app-setlist-detail',
   templateUrl: './setlist-detail.html',
   styleUrl: './setlist-detail.scss',
-  imports: [PlayPauseButton],
+  imports: [PlayPauseButton, ShareLinkButton],
 })
 export class SetlistDetail {
   protected readonly data = inject(RehearsalData);

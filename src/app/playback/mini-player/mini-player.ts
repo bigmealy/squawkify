@@ -11,6 +11,7 @@ import {
 import { PlayerState } from '../player-state';
 import { buildMediaMetadata } from '../media-session';
 import { buildDownloadFilename } from '../download-filename';
+import { buildRecordingLink, buildShareTitle } from '../recording-link';
 import { formatTime } from '../format-time';
 import { PlayPauseButton, PlayPauseState } from '../play-pause-button/play-pause-button';
 
@@ -41,6 +42,8 @@ export class MiniPlayer {
   private currentObjectUrl: string | null = null;
 
   protected readonly isSharing = signal(false);
+  protected readonly linkCopied = signal(false);
+  private linkCopiedTimeoutId: ReturnType<typeof setTimeout> | undefined;
 
   constructor() {
     effect((onCleanup) => {
@@ -129,6 +132,7 @@ export class MiniPlayer {
     this.destroyRef.onDestroy(() => {
       this.player.registerAudioController(null);
       if (this.currentObjectUrl) URL.revokeObjectURL(this.currentObjectUrl);
+      clearTimeout(this.linkCopiedTimeoutId);
     });
 
     // Deliberately no 'seekto'/setPositionState handler: on iOS, registering
@@ -231,18 +235,36 @@ export class MiniPlayer {
 
       const filename = buildDownloadFilename(current);
       const file = new File([blob], filename, { type: blob.type || 'audio/mpeg' });
+      const url = buildRecordingLink(current, location.origin);
+      const title = buildShareTitle(current);
 
-      if (navigator.canShare?.({ files: [file] })) {
+      if (navigator.canShare?.({ files: [file], url })) {
         try {
-          await navigator.share({ files: [file] });
+          await navigator.share({ files: [file], url, title });
         } catch (err) {
           // User cancelling the share sheet throws AbortError — swallow it,
           // and any other share failure, rather than falling back to a
           // download the user didn't ask for.
           if (err instanceof DOMException && err.name === 'AbortError') return;
         }
+      } else if (navigator.canShare?.({ files: [file] })) {
+        // Platform supports sharing files but not combined with a url —
+        // same behavior as before this feature existed.
+        try {
+          await navigator.share({ files: [file], title });
+        } catch (err) {
+          if (err instanceof DOMException && err.name === 'AbortError') return;
+        }
       } else {
         this.triggerDownload(file);
+        try {
+          await navigator.clipboard.writeText(url);
+          this.linkCopied.set(true);
+          clearTimeout(this.linkCopiedTimeoutId);
+          this.linkCopiedTimeoutId = setTimeout(() => this.linkCopied.set(false), 2000);
+        } catch {
+          // Best-effort only — the download already happened either way.
+        }
       }
     } finally {
       this.isSharing.set(false);

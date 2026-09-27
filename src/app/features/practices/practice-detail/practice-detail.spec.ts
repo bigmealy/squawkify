@@ -326,6 +326,65 @@ describe('PracticeDetail', () => {
     expect(text).toContain('Practice not found');
   });
 
+  it('scrolls to and highlights the recording matching the take query param', async () => {
+    // Arrange — jsdom doesn't implement scrollIntoView at all, so it must be
+    // assigned (not spied on) before the component exists, so it's in place
+    // before the effect's queued microtask fires.
+    const scrollSpy = vi.fn();
+    HTMLElement.prototype.scrollIntoView = scrollSpy;
+    const practice: Practice = { id: 'p1', date: '2026-01-01', venue: 'Room 1' };
+    const song: Song = { id: 's1', title: 'Song First' };
+    const recording: Recording = {
+      id: 'r1',
+      songId: song.id,
+      practiceId: practice.id,
+      url: 'https://example.com/r1.mp3',
+    };
+
+    // Act
+    const fixture = TestBed.createComponent(PracticeDetail);
+    fixture.componentRef.setInput('practiceId', practice.id);
+    fixture.componentRef.setInput('take', 'r1');
+    TestBed.tick();
+    flushManifests(httpMock, { songs: [song], practices: [practice], recordings: [recording] });
+    await fixture.whenStable();
+    fixture.detectChanges();
+    await vi.waitFor(() => expect(scrollSpy).toHaveBeenCalled());
+    fixture.detectChanges();
+
+    // Assert
+    const row = (fixture.nativeElement as HTMLElement).querySelector('[data-recording-id="r1"]')!;
+    expect(row.classList).toContain('recording-list__item--shared');
+
+    // Cleanup
+    Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView');
+  });
+
+  it('does not scroll or highlight anything when the take param matches no recording', async () => {
+    // Arrange
+    const practice: Practice = { id: 'p1', date: '2026-01-01', venue: 'Room 1' };
+    const song: Song = { id: 's1', title: 'Song First' };
+    const recording: Recording = {
+      id: 'r1',
+      songId: song.id,
+      practiceId: practice.id,
+      url: 'https://example.com/r1.mp3',
+    };
+
+    // Act
+    const fixture = TestBed.createComponent(PracticeDetail);
+    fixture.componentRef.setInput('practiceId', practice.id);
+    fixture.componentRef.setInput('take', 'r-does-not-exist');
+    TestBed.tick();
+    flushManifests(httpMock, { songs: [song], practices: [practice], recordings: [recording] });
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    // Assert — no row carries the shared highlight class
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('.recording-list__item--shared')).toBeNull();
+  });
+
   it('shows a loading state before manifests resolve, not a false not-found', () => {
     // Act
     const fixture = TestBed.createComponent(PracticeDetail);

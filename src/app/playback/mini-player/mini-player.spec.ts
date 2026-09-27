@@ -348,9 +348,82 @@ describe('MiniPlayer', () => {
     compiled.querySelector<HTMLButtonElement>('.mini-player__share')!.click();
 
     await vi.waitFor(() => expect(shareSpy).toHaveBeenCalledOnce());
-    const { files } = shareSpy.mock.calls[0][0];
+    const { files, url, title } = shareSpy.mock.calls[0][0];
     expect(files).toHaveLength(1);
     expect(files[0]).toBeInstanceOf(File);
     expect(files[0].name).toBe('2026-01-01 Song One.mp3');
+    expect(url).toBe(`${location.origin}/practices/p1?take=r1`);
+    expect(title).toBe('Song One — 2026-01-01');
+  });
+
+  it('shares the file only, without a url, when the platform cannot combine files and a url', async () => {
+    const shareSpy = vi.fn().mockResolvedValue(undefined);
+    (navigator as unknown as { canShare: unknown }).canShare = vi.fn(
+      (data: ShareData) => !!data.files && !data.url,
+    );
+    (navigator as unknown as { share: unknown }).share = shareSpy;
+
+    const fixture = TestBed.createComponent(MiniPlayer);
+    fixture.detectChanges();
+
+    const item: JoinedRecording = {
+      recording: { id: 'r1', songId: 's1', practiceId: 'p1', url: 'https://example.com/r1.mp3' },
+      song: { id: 's1', title: 'Song One' },
+      practice: { id: 'p1', date: '2026-01-01', venue: 'Room 1' },
+    };
+    TestBed.inject(PlayerState).play(item);
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const audio = compiled.querySelector('audio') as HTMLAudioElement;
+    await vi.waitFor(() => expect(audio.src).toContain('blob:mock-url'));
+
+    vi.spyOn(window, 'fetch').mockResolvedValueOnce(
+      new Response(new Blob(['fake-audio-bytes'], { type: 'audio/mpeg' })),
+    );
+    compiled.querySelector<HTMLButtonElement>('.mini-player__share')!.click();
+
+    await vi.waitFor(() => expect(shareSpy).toHaveBeenCalledOnce());
+    const call = shareSpy.mock.calls[0][0];
+    expect(call.files).toHaveLength(1);
+    expect(call.url).toBeUndefined();
+  });
+
+  it('falls back to download plus clipboard copy when the Web Share API is unavailable', async () => {
+    const writeTextSpy = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText: writeTextSpy } });
+
+    const fixture = TestBed.createComponent(MiniPlayer);
+    fixture.detectChanges();
+
+    const item: JoinedRecording = {
+      recording: { id: 'r1', songId: 's1', practiceId: 'p1', url: 'https://example.com/r1.mp3' },
+      song: { id: 's1', title: 'Song One' },
+      practice: { id: 'p1', date: '2026-01-01', venue: 'Room 1' },
+    };
+    TestBed.inject(PlayerState).play(item);
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const audio = compiled.querySelector('audio') as HTMLAudioElement;
+    await vi.waitFor(() => expect(audio.src).toContain('blob:mock-url'));
+
+    vi.spyOn(window, 'fetch').mockResolvedValueOnce(
+      new Response(new Blob(['fake-audio-bytes'], { type: 'audio/mpeg' })),
+    );
+    const anchorClickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    const shareButton = compiled.querySelector<HTMLButtonElement>('.mini-player__share')!;
+    shareButton.click();
+
+    await vi.waitFor(() => expect(writeTextSpy).toHaveBeenCalledOnce());
+    expect(writeTextSpy).toHaveBeenCalledWith(`${location.origin}/practices/p1?take=r1`);
+    expect(anchorClickSpy).toHaveBeenCalledOnce();
+
+    fixture.detectChanges();
+    expect(shareButton.getAttribute('aria-label')).toBe('Link copied');
+
+    // Cleanup
+    Reflect.deleteProperty(navigator, 'clipboard');
+    anchorClickSpy.mockRestore();
   });
 });

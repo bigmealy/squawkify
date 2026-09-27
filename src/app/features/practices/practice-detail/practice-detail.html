@@ -36,7 +36,9 @@
       @for (item of g.recordings; track item.recording.id) {
         <li
           class="recording-list__item"
+          [attr.data-recording-id]="item.recording.id"
           [class.recording-list__item--active]="isActive(item)"
+          [class.recording-list__item--shared]="highlightedId() === item.recording.id"
         >
           <div class="recording-list__meta">
             <span class="recording-list__song">{{ item.song.title }}</span>
@@ -44,7 +46,10 @@
               <span class="recording-list__take">{{ item.recording.takeLabel }}</span>
             }
           </div>
-          <app-play-pause-button [state]="stateFor(item)" (toggle)="onToggle(item)" />
+          <div class="recording-list__actions">
+            <app-play-pause-button [state]="stateFor(item)" (toggle)="onToggle(item)" />
+            <app-share-link-button [item]="item" />
+          </div>
         </li>
       }
     </ul>

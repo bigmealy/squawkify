@@ -57,6 +57,10 @@
     &--active {
       @include mix.list-card-active;
     }
+
+    &--shared {
+      animation: recording-list-shared-pulse 2.5s ease-out;
+    }
   }
 
   &__meta {
@@ -66,6 +70,12 @@
     min-width: 0;
   }
 
+  &__actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
   &__song {
     font-weight: 600;
   }
@@ -73,5 +83,16 @@
   &__take {
     font-size: var(--font-size-sm);
     color: var(--color-text-muted);
+  }
+}
+
+@keyframes recording-list-shared-pulse {
+  0% {
+    background: var(--color-accent-teal);
+    border-left-color: var(--color-accent-teal);
+  }
+  100% {
+    background: var(--color-surface);
+    border-left-color: transparent;
   }
 }

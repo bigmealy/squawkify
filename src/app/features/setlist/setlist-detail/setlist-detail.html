@@ -19,7 +19,10 @@
               <span class="recording-list__take">{{ item.recording.takeLabel }}</span>
             }
           </div>
-          <app-play-pause-button [state]="stateFor(item)" (toggle)="onToggle(item)" />
+          <div class="recording-list__actions">
+            <app-play-pause-button [state]="stateFor(item)" (toggle)="onToggle(item)" />
+            <app-share-link-button [item]="item" />
+          </div>
         </li>
       }
     </ul>
